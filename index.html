@@ -67,6 +67,21 @@
   @media (max-width:1200px){
     .arena{ grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr) !important; }
   }
+/* --- 常に3カラムを維持（古い縦1列ルールを上書き） --- */
+.arena{
+  display: grid;
+  grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr) !important;
+  align-items: center;
+}
+
+/* はみ出し・重なり防止（スマホ含む） */
+.side{ width: 100%; }
+.picCard{
+  width: 100%;
+  max-width: var(--card-w);
+  aspect-ratio: 1/1;
+  height: auto;
+}
 </style>
 </head>
 <body>
