@@ -598,20 +598,19 @@ let state=null;
   IMAGE_MAP = await loadImageMapJson(); // image-map.json が無くてもOK
   const savedSel = loadSelected();
   SELECTED = Array.from(savedSel);
+
   const savedState = loadState();
   if(savedState){
     state = savedState;
-    toggleSetup(false);
+    toggleSetup(false); // ← 既存の続きがあればそのまま本編表示
   }else{
-    // 初回はメンバー選択（選択は全員が初期値）
-    selectedSet = savedSel;
-    renderGenFilters();
-    renderChecklist();
-    toggleSetup(true);
-    state = createNewState(SELECTED.slice()); // 準備だけ
+    // ★初回もメンバー選択は開かず、本編から開始（選択は保存 or 全員）
+    state = createNewState(SELECTED.slice());
+    toggleSetup(false); // ← ここを true にしないのがポイント
   }
   render();
 })();
+
 </script>
 </body>
 </html>
