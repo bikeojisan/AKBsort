@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AKB48ソート</title>
+<title>AKB48ソート（改善版）</title>
 <style>
   :root{
     --gap: 14px;
@@ -23,8 +23,8 @@
   main{max-width:1200px; margin:18px auto; padding:0 16px;}
 
   .arena{ display:grid; gap:var(--gap); grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr); align-items:center; }
-  .side{display:flex; flex-direction:column; align-items:center; gap:12px;}
-  .picCard{position:relative; width:var(--card-w); height:var(--card-h); border-radius:var(--radius); background:#0f1317; border:1px solid #1f262d; overflow:hidden; box-shadow:0 6px 30px rgba(0,0,0,.35);} 
+  .side{display:flex; flex-direction:column; align-items:center; gap:12px; width:100%;}
+  .picCard{position:relative; width:100%; max-width:var(--card-w); aspect-ratio:1/1; height:auto; border-radius:var(--radius); background:#0f1317; border:1px solid #1f262d; overflow:hidden; box-shadow:0 6px 30px rgba(0,0,0,.35);}  
   .picCard .stage{position:absolute; inset:0;}
   .stage img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .24s linear; backface-visibility:hidden; transform: translateZ(0);} 
   .stage img.active{opacity:1;}
@@ -49,29 +49,24 @@
   .same{font-size:12px; opacity:.7;}
   .footnote{opacity:.65; font-size:12px; margin-top:10px;}
 
-@media (max-width:900px){
-  :root{
-    --gap:10px;
-    --card-w:clamp(140px, 44vw, 320px);
-    --card-h:var(--card-w);
-    --btn-h:48px;
+  @media (max-width:900px){
+    :root{--gap:10px; --card-w:clamp(140px, 44vw, 320px); --card-h:var(--card-w); --btn-h:48px;}
+    .arena{grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr);} /* ★スマホでも横並び維持 */
+    .tieCol{order:0; margin:0;}
+    .tie-btn{ width:clamp(72px, 18vw, 120px); }
+    .choice-btn{ font-size:14px; }
   }
-  /* ← スマホでも横並びのまま */
-  .arena{ grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr); }
-  .tieCol{ order:0; margin:0; }
-  .tie-btn{ width:clamp(72px, 18vw, 120px); }
-  .choice-btn{ font-size:14px; }
-}
-@media (max-width:480px){
-  :root{ --card-w:clamp(120px, 42vw, 260px); } /* さらに狭い端末向け */
-}
-
+  @media (max-width:480px){
+    :root{--card-w:clamp(120px, 42vw, 260px);} /* さらに狭い端末向けに縮小 */
+  }
+    .arena{grid-template-columns: 1fr; }
+    .tieCol{order:3; margin:10px 0;}
+  }
   @media (prefers-reduced-motion: reduce){ .stage img{transition:none;} }
   /* ---- 強制横並びの最終ガード（古いCSSが残っても上書き） ---- */
-　/* 最終ガード：常に3カラムを維持 */
-　@media (max-width:1200px){
-  　.arena{ grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr) !important; }
-　}
+  @media (max-width:1200px){
+    .arena{ grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr) !important; }
+  }
 </style>
 </head>
 <body>
@@ -230,6 +225,40 @@ function computeOptimalTotal(n){
   return total;
 }
 
+// 任意のランサイズ配列に対するハフマン型コスト（上界）
+function huffmanCostFromSizes(sizes){
+  const heap = sizes.filter(x=>x>0).slice();
+  if(heap.length<=1) return 0;
+  const up = (i)=>{ while(i>0){ const p=(i-1)>>1; if(heap[p]<=heap[i]) break; [heap[p],heap[i]]=[heap[i],heap[p]]; i=p; } };
+  const down = (i)=>{ for(;;){ let l=i*2+1, r=l+1, s=i; if(l<heap.length && heap[l]<heap[s]) s=l; if(r<heap.length && heap[r]<heap[s]) s=r; if(s===i) break; [heap[i],heap[s]]=[heap[s],heap[i]]; i=s; } };
+  for(let i=(heap.length>>1)-1;i>=0;i--) down(i);
+  const pop=()=>{ const x=heap[0]; const y=heap.pop(); if(heap.length){ heap[0]=y; down(0);} return x; };
+  const push=(v)=>{ heap.push(v); up(heap.length-1); };
+
+  let cost=0;
+  while(heap.length>1){
+    const a=pop(), b=pop();
+    cost += (a+b-1);
+    push(a+b);
+  }
+  return cost;
+}
+
+// 現在の状態から見た「残り比較回数」の上界を用いて動的な分母を再計算
+function recomputeTotalUpperBound(s){
+  const otherSizes = s.runs.map(r=>r.length);
+  if(s.active){
+    const leftRem = s.active.left.length - s.active.i;
+    const rightRem = s.active.right.length - s.active.j;
+    const mergedSoFar = s.active.merged.length;
+    const pairCost = (leftRem>0 && rightRem>0) ? (leftRem + rightRem - 1) : 0; // 上界
+    const newRunSize = mergedSoFar + leftRem + rightRem;
+    const sizesAfter = newRunSize>0 ? [newRunSize, ...otherSizes] : otherSizes.slice();
+    return s.done + pairCost + huffmanCostFromSizes(sizesAfter);
+  }
+  return s.done + huffmanCostFromSizes(otherSizes);
+}
+
 /***********************
  * State 型定義（JSDoc）
  ***********************/
@@ -355,14 +384,16 @@ function pick(s, which){
  * 画面更新
  ***********************/
 function updateProgress(s){
-  const p = easedPercent(s.done, s.total, s.finished);
-  bar.style.width = p + "%";
-  pct.textContent = p + "%";
-  countEl.textContent = `比較: ${Math.min(s.done, s.total)} / ${s.total}`;
+  const totalDyn = recomputeTotalUpperBound(s);
+  const p = easedPercent(s.done, totalDyn, s.finished);
   if (s.finished) {
     bar.style.width = "100%";
     pct.textContent = "100%";
-    countEl.textContent = `比較: ${s.total} / ${s.total}`;
+    countEl.textContent = `比較: ${s.done} / ${s.done}`;
+  } else {
+    bar.style.width = p + "%";
+    pct.textContent = p + "%";
+    countEl.textContent = `比較: ${s.done} / ${totalDyn}`;
   }
 }
 
