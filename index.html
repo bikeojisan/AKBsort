@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AKB48ソート（改善版）</title>
+<style>
+  :root{
+    --gap: 14px;
+    --card-w: min(46vw, 420px);
+    --card-h: min(46vw, 420px);
+    --btn-h: 56px;
+    --radius: 18px;
+  }
+  body{font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Arial, sans-serif; margin:0; background:#0b0d0f; color:#eef1f4;}
+  header{display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #20252b; position:sticky; top:0; backdrop-filter: blur(6px); background:rgba(11,13,15,.7);}  
+  header h1{font-size:18px; margin:0; font-weight:700;}
+  #progressWrap{display:flex; align-items:center; gap:12px; margin-left:auto; min-width:260px;}
+  #bar{flex:1; height:10px; background:#1a1f25; border-radius:999px; overflow:hidden;}
+  #bar>i{display:block; height:100%; width:0%; background:linear-gradient(90deg,#66d1ff,#7cffc4); transition:width .2s ease;}
+  #pct{font-variant-numeric: tabular-nums; min-width:52px; text-align:right;}
+  #count{font-variant-numeric: tabular-nums; font-size:12px; opacity:.8; white-space:nowrap;}
+  main{max-width:1200px; margin:18px auto; padding:0 16px;}
+
+  .arena{ display:grid; gap:var(--gap); grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr); align-items:center; }
+  .side{display:flex; flex-direction:column; align-items:center; gap:12px;}
+  .picCard{position:relative; width:var(--card-w); height:var(--card-h); border-radius:var(--radius); background:#0f1317; border:1px solid #1f262d; overflow:hidden; box-shadow:0 6px 30px rgba(0,0,0,.35);} 
+  .picCard .stage{position:absolute; inset:0;}
+  .stage img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .24s linear; backface-visibility:hidden; transform: translateZ(0);} 
+  .stage img.active{opacity:1;}
+  .choice-btn{width:100%; max-width:var(--card-w); height:var(--btn-h); border-radius:12px; border:1px solid #28323a; background:#161b20; color:#e9eef3; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 14px; cursor:pointer; transition:transform .03s ease, background .2s;}
+  .choice-btn:hover{background:#1b2127;}
+  .choice-btn:active{transform:translateY(1px);} 
+
+  .tieCol{display:flex; align-items:center; justify-content:center; place-self:center;}
+  .tie-btn{ width:140px; height:var(--btn-h); border-radius:999px; border:1px solid #28323a; background:#161b20; color:#e9eef3; cursor:pointer; transition:background .2s; }
+  .tie-btn:hover{ background:#1b2127; }
+  .tie-btn:focus, .tie-btn:focus-visible{ outline:none; box-shadow:0 0 0 2px rgba(124,255,196,.35); }
+
+  .hidden{display:none !important;}
+  .panel{background:#0f1317; border:1px solid #1f262d; border-radius:16px; padding:12px 14px;}
+  .toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .toolbar button{height:36px; border-radius:10px; border:1px solid #28323a; background:#12171c; color:#e9eef3; padding:0 10px; cursor:pointer;}
+  .toolbar button[disabled]{opacity:.45; cursor:not-allowed;}
+
+  .result{display:grid; gap:8px; margin-top:14px;}
+  .rankRow{display:flex; gap:10px; align-items:center; padding:10px; border:1px solid #1f262d; border-radius:12px; background:#0b0f12;}
+  .rankNo{font-weight:700; width:44px; text-align:right;}
+  .same{font-size:12px; opacity:.7;}
+  .footnote{opacity:.65; font-size:12px; margin-top:10px;}
+
+  @media (max-width:900px){
+    :root{--card-w:88vw; --card-h:88vw;}
+    .arena{grid-template-columns: 1fr; }
+    .tieCol{order:3; margin:10px 0;}
+  }
+  @media (prefers-reduced-motion: reduce){ .stage img{transition:none;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>AKB48ソート</h1>
+  <div id="progressWrap" class="panel" aria-label="進捗状況">
+    <div id="bar" aria-hidden="true"><i></i></div>
+    <div id="pct" aria-live="polite">0%</div>
+    <div id="count">比較: 0 / 0</div>
+  </div>
+</header>
+
+<main>
+  <div class="panel toolbar" style="margin-bottom:14px;">
+    <button id="resetBtn" title="最初からやり直す">🔄 はじめから</button>
+    <button id="undoBtn" title="1手戻す" disabled>↩ 戻す</button>
+    <!-- 結果が出るまで隠す -->
+    <button id="exportBtn" class="hidden" title="結果をテキストとして保存">📄 結果をテキスト化</button>
+    <button id="tweetBtn"  class="hidden" title="上位7位をXで共有">𝕏 結果を共有</button>
+  </div>
+
+  <div class="arena" id="arena">
+    <div class="side">
+      <div class="picCard"><div class="stage" id="stageL"></div></div>
+      <button class="choice-btn" id="btnL" aria-label="左を選ぶ">(左)</button>
+    </div>
+    <div class="tieCol">
+      <button class="tie-btn" id="btnTie" aria-label="引き分け">引き分け</button>
+    </div>
+    <div class="side">
+      <div class="picCard"><div class="stage" id="stageR"></div></div>
+      <button class="choice-btn" id="btnR" aria-label="右を選ぶ">(右)</button>
+    </div>
+  </div>
+
+  <div id="resultWrap" class="hidden" aria-live="polite">
+    <h2 style="margin:10px 0 6px;">最終結果</h2>
+    <div id="resultList" class="result"></div>
+    <div class="footnote">※「引き分け」を選んだメンバーは同率としてまとめて表示します。</div>
+  </div>
+</main>
+
+<script>
+/***********************
+ * 対象メンバー（43名） *
+ ***********************/
+const MEMBERS = [
+"岩立沙穂","福岡聖菜","向井地美音","小栗有以","倉野尾成美","坂川陽香","下尾みう","髙橋彩音",
+"徳永羚海","永野芹佳","橋本陽菜","千葉恵里","鈴木くるみ","田口愛佳","長友彩海","武藤小麟",
+"山内瑞葵","大盛真歩","太田有紀","佐藤綺星","橋本恵理子","畠山希美","平田侑希","布袋百椛",
+"正鋳真優","水島美結","山﨑空","秋山由奈","新井彩永","工藤華純","久保姫菜乃","迫由芽実",
+"成田香姫奈","八木愛月","山口結愛","伊藤百花","奥本カイリ","川村結衣","白鳥沙怜","花田藍衣",
+"大賀彩姫","近藤沙樹","丸山ひなた"
+];
+
+/***********************
+ * 要素参照
+ ***********************/
+const $ = s=>document.querySelector(s);
+const stageL=document.querySelector("#stageL"), stageR=document.querySelector("#stageR");
+const btnL=document.querySelector("#btnL"), btnR=document.querySelector("#btnR"), btnTie=document.querySelector("#btnTie");
+const bar=document.querySelector("#bar>i"), pct=document.querySelector("#pct"), countEl=document.querySelector("#count");
+const arena=document.querySelector("#arena"), resultWrap=document.querySelector("#resultWrap"), resultList=document.querySelector("#resultList");
+const resetBtn=document.querySelector("#resetBtn"), undoBtn=document.querySelector("#undoBtn"), exportBtn=document.querySelector("#exportBtn"), tweetBtn=document.querySelector("#tweetBtn");
+
+/***********************
+ * 進捗イージング（初期0%固定）
+ ***********************/
+const PROGRESS_EASE_GAMMA = 2.2;
+const PROGRESS_START_KICK = 0;
+function easedPercent(done, total, finished){
+  if (finished) return 100;
+  if (!total)   return 100;
+  if (done === 0) return 0; // 初期は必ず0%
+  const x = Math.min(done / total, 0.999);
+  const y0 = 1 - Math.pow(1 - x, PROGRESS_EASE_GAMMA);
+  const y  = PROGRESS_START_KICK + (1 - PROGRESS_START_KICK) * y0;
+  return Math.min(99, Math.max(0, Math.round(y * 100)));
+}
+
+/***********************
+ * 画像マップ（image-map.json）
+ ***********************/
+let IMAGE_MAP = {};
+async function loadImageMapJson(){
+  try{
+    const res = await fetch("image-map.json", { cache:"no-store" });
+    if(!res.ok) return {};
+    return await res.json();
+  }catch(e){ return {}; }
+}
+const cache = new Map();
+const placeholderSrc = (name)=>`https://placehold.co/800x800/png?text=${encodeURIComponent(name)}`;
+
+function ensureStages(stageEl){
+  if(stageEl.children.length===0){
+    const a=document.createElement("img"), b=document.createElement("img");
+    for (const el of [a,b]){
+      el.decoding="async";
+      el.referrerPolicy="no-referrer";
+      el.loading="eager";
+      el.alt=""; // 後で名前を入れる
+    }
+    stageEl.appendChild(a); stageEl.appendChild(b);
+    a.className="active";
+  }
+}
+function showImage(stageEl, name){
+  ensureStages(stageEl);
+  const imgA=stageEl.children[0], imgB=stageEl.children[1];
+  const active=imgA.classList.contains("active")?imgA:imgB;
+  const idle=active===imgA?imgB:imgA;
+
+  const primary = IMAGE_MAP[name] || placeholderSrc(name);
+  const candidates = [primary];
+  if(!primary.includes("placehold.co")) candidates.push(placeholderSrc(name));
+
+  function swapTo(src){
+    idle.src = src;
+    idle.alt = name;
+    active.alt = name;
+    requestAnimationFrame(()=>{ active.classList.remove("active"); idle.classList.add("active"); });
+  }
+
+  function tryLoad(idx){
+    const src=candidates[idx];
+    if(cache.has(src)) return swapTo(src);
+    const tmp=new Image();
+    tmp.referrerPolicy="no-referrer";
+    tmp.onload=()=>{ cache.set(src,true); swapTo(src); };
+    tmp.onerror=()=>{ if(idx+1<candidates.length) tryLoad(idx+1); else { const fb=placeholderSrc(name); cache.set(fb,true); swapTo(fb); } };
+    tmp.src=src;
+  }
+  tryLoad(0);
+}
+
+/***********************
+ * 最適マージ（ハフマン型）- ヒープ実装
+ ***********************/
+function computeOptimalTotal(n){
+  if(n<=1) return 0;
+  // 初期は 1 を n 個
+  const heap = Array(n).fill(1);
+  const up = (i)=>{ while(i>0){ const p=(i-1)>>1; if(heap[p]<=heap[i]) break; [heap[p],heap[i]]=[heap[i],heap[p]]; i=p; } };
+  const down = (i)=>{ for(;;){ let l=i*2+1, r=l+1, s=i; if(l<heap.length && heap[l]<heap[s]) s=l; if(r<heap.length && heap[r]<heap[s]) s=r; if(s===i) break; [heap[i],heap[s]]=[heap[s],heap[i]]; i=s; } };
+  for(let i=(heap.length>>1)-1;i>=0;i--) down(i);
+  const pop=()=>{ const x=heap[0]; const y=heap.pop(); if(heap.length){ heap[0]=y; down(0);} return x; };
+  const push=(v)=>{ heap.push(v); up(heap.length-1); };
+
+  let total=0;
+  while(heap.length>1){
+    const a=pop(), b=pop();
+    total += (a+b-1);
+    push(a+b);
+  }
+  return total;
+}
+
+/***********************
+ * State 型定義（JSDoc）
+ ***********************/
+/**
+ * @typedef {{left:string[], right:string[], i:number, j:number, merged:string[]}} ActiveRun
+ * @typedef {{ runs: string[][], active: ActiveRun|null, done: number, total: number, ties: Map<string, Set<string>>, finished: boolean, final: string[] }} SortState
+ */
+
+/***********************
+ * State の生成・保存・復元
+ ***********************/
+const STORAGE_KEY="akb-ranker-optimal-merge-ease-share-v3"; // ★v3: Undo搭載
+
+function createNewState(names){
+  /** @type {SortState} */
+  return {
+    runs: names.map(n=>[n]),
+    active: null,
+    done: 0,
+    total: computeOptimalTotal(names.length),
+    ties: new Map(),
+    finished: false,
+    final: []
+  };
+}
+
+function serializeState(s){
+  const tiesObj = {};
+  s.ties.forEach((set, k)=>{ tiesObj[k] = Array.from(set); });
+  return JSON.stringify({ runs: s.runs, active: s.active, done: s.done, total: s.total, ties: tiesObj, finished: s.finished, final: s.final });
+}
+function deserializeState(json){
+  try{
+    const o = JSON.parse(json);
+    const ties = new Map(Object.entries(o.ties||{}).map(([k,arr])=>[k,new Set(arr)]));
+    return { runs:o.runs, active:o.active, done:o.done, total:o.total, ties, finished:o.finished, final:o.final };
+  }catch(e){ return null; }
+}
+
+function saveState(s){
+  localStorage.setItem(STORAGE_KEY, serializeState(s));
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    return deserializeState(raw);
+  }catch(e){ return null; }
+}
+
+// localStorage 書き込みを軽減（~1フレーム）
+const saveStateDebounced = (()=>{ let t=null; return (s)=>{ clearTimeout(t); t=setTimeout(()=>saveState(s), 16); }; })();
+
+/***********************
+ * マージ進行
+ ***********************/
+function prepareNextPair(s){
+  if(s.active && s.active.i < s.active.left.length && s.active.j < s.active.right.length) return;
+
+  if(s.active){
+    const a=s.active;
+    while(a.i<a.left.length)  a.merged.push(a.left[a.i++]);
+    while(a.j<a.right.length) a.merged.push(a.right[a.j++]);
+    s.runs.push(a.merged);
+    s.active = null;
+  }
+
+  if(s.runs.length===1){
+    s.finished = true;
+    s.final = s.runs[0];
+    return;
+  }
+
+  if(s.runs.length>=2){
+    s.runs.sort((A,B)=>A.length-B.length);
+    const left  = s.runs.shift();
+    const right = s.runs.shift();
+    s.active = { left, right, i:0, j:0, merged:[] };
+    return prepareNextPair(s);
+  }
+}
+
+/***********************
+ * Undo（スナップショット方式）
+ ***********************/
+const history = [];
+function pushHistory(s){ history.push(serializeState(s)); undoBtn.disabled = history.length===0; }
+function canUndo(){ return history.length>0; }
+function undo(){
+  if(!canUndo()) return;
+  const snap = history.pop();
+  const prev = deserializeState(snap);
+  if(prev){ state = prev; render(/*no snapshot*/ true); }
+  undoBtn.disabled = history.length===0;
+}
+
+/***********************
+ * 1手進める
+ ***********************/
+function pick(s, which){
+  if(s.finished) return;
+  prepareNextPair(s); if(s.finished) return;
+
+  // スナップショット保存（Undo用）
+  pushHistory(s);
+
+  const a=s.active;
+  const L=a.left[a.i], R=a.right[a.j];
+
+  if(which==="L"){ a.merged.push(L); a.i++; }
+  else if(which==="R"){ a.merged.push(R); a.j++; }
+  else { // 引き分け
+    a.merged.push(L); a.merged.push(R); a.i++; a.j++;
+    if(!s.ties.has(L)) s.ties.set(L,new Set());
+    if(!s.ties.has(R)) s.ties.set(R,new Set());
+    s.ties.get(L).add(R); s.ties.get(R).add(L);
+  }
+  s.done++;
+  prepareNextPair(s);
+}
+
+/***********************
+ * 画面更新
+ ***********************/
+function updateProgress(s){
+  const p = easedPercent(s.done, s.total, s.finished);
+  bar.style.width = p + "%";
+  pct.textContent = p + "%";
+  countEl.textContent = `比較: ${Math.min(s.done, s.total)} / ${s.total}`;
+  if (s.finished) {
+    bar.style.width = "100%";
+    pct.textContent = "100%";
+    countEl.textContent = `比較: ${s.total} / ${s.total}`;
+  }
+}
+
+function render(skipSnapshot){
+  updateProgress(state);
+  // 結果ボタンの表示
+  const finished = !!state.finished;
+  exportBtn.classList.toggle("hidden", !finished);
+  tweetBtn.classList.toggle("hidden", !finished);
+
+  // Undo 利用可否
+  undoBtn.disabled = history.length===0;
+
+  if(finished){
+    arena.classList.add("hidden");
+    resultWrap.classList.remove("hidden");
+    renderResult();
+    if(!skipSnapshot) saveStateDebounced(state);
+    return;
+  }
+
+  prepareNextPair(state); if(state.finished){ render(); return; }
+  const a=state.active, L=a.left[a.i], R=a.right[a.j];
+
+  showImage(stageL, L); showImage(stageR, R);
+  btnL.textContent=L; btnR.textContent=R;
+
+  arena.classList.remove("hidden"); resultWrap.classList.add("hidden");
+  if(!skipSnapshot) saveStateDebounced(state);
+}
+
+/***********************
+ * 結果表示
+ ***********************/
+function buildTieGroupsInOrder(){
+  const adj = state.ties;
+  const seen = new Set();
+  const groups = [];
+  for(const name of state.final){
+    if(seen.has(name)) continue;
+    const group = [];
+    const q=[name]; seen.add(name);
+    while(q.length){
+      const u=q.shift(); group.push(u);
+      if(adj.has(u)){
+        for(const v of adj.get(u)){
+          if(!seen.has(v)){ seen.add(v); q.push(v); }
+        }
+      }
+    }
+    groups.push(group);
+  }
+  return groups;
+}
+
+function renderResult(){
+  resultList.innerHTML="";
+  const groups = buildTieGroupsInOrder();
+  let rank = 1;
+  for(const group of groups){
+    const row=document.createElement("div"); row.className="rankRow";
+    const no=document.createElement("div"); no.className="rankNo"; no.textContent=rank;
+    const names=document.createElement("div"); names.textContent=group.join(" / ");
+    const same=document.createElement("div"); same.className="same"; same.textContent=group.length>1?"（同率）":"";
+    row.appendChild(no); row.appendChild(names); row.appendChild(same);
+    resultList.appendChild(row);
+    rank += group.length;
+  }
+}
+
+/***********************
+ * エクスポート & 共有（X）
+ ***********************/
+function buildResultLines(){
+  const groups = buildTieGroupsInOrder();
+  const lines = [];
+  let rank = 1;
+  for(const g of groups){
+    lines.push(`${rank}. ${g.join(" / ")}`);
+    rank += g.length;
+  }
+  return lines;
+}
+
+function buildTopNLines(n){
+  const groups = buildTieGroupsInOrder();
+  const lines = [];
+  let rank = 1;
+  for(const g of groups){
+    if(rank > n) break;
+    lines.push(`${rank}. ${g.join(" / ")}`);
+    rank += g.length;
+  }
+  return lines;
+}
+
+function composeTweetTop7(){
+  const MAX = 280;
+  const header = "AKB48推しソート上位7位";
+  const tags = "#AKB48 #推しソート";
+  const lines = buildTopNLines(7);
+
+  let parts = [header];
+  for(const line of lines){
+    const next = parts.join("\n") + "\n" + line;
+    if(next.length <= MAX){ parts.push(line); }
+    else {
+      const remain = lines.length - (parts.length-1);
+      const tail = `…他${remain}行`;
+      if((parts.join("\n")+"\n"+tail).length <= MAX) parts.push(tail);
+      break;
+    }
+  }
+  let text = parts.join("\n");
+  if ((text+"\n"+tags).length <= MAX) text += "\n" + tags;
+  return text;
+}
+
+/***********************
+ * イベント
+ ***********************/
+function onChoose(which){ pick(state, which); render(); }
+
+// 二重発火防止: PointerEvent が使える環境では pointerdown のみ、未対応なら click のみ
+const USE_POINTER = window.PointerEvent !== undefined;
+const bind = (el, type, which) => el.addEventListener(type, (e)=>{ e.preventDefault(); onChoose(which); }, { passive:false });
+
+if (USE_POINTER) {
+  bind(btnL, 'pointerdown', 'L');
+  bind(btnR, 'pointerdown', 'R');
+  bind(btnTie, 'pointerdown', 'T');
+} else {
+  bind(btnL, 'click', 'L');
+  bind(btnR, 'click', 'R');
+  bind(btnTie, 'click', 'T');
+}
+
+// キーボード操作: ←/→/↓ or Space、Ctrl+Z でUndo
+document.addEventListener("keydown",(e)=>{
+  if(e.ctrlKey && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); return; }
+  if(state.finished) return;
+  if(e.key==="ArrowLeft"){ onChoose("L"); }
+  else if(e.key==="ArrowRight"){ onChoose("R"); }
+  else if(e.key==="ArrowDown" || e.key===" "){ e.preventDefault(); onChoose("T"); }
+});
+
+resetBtn.addEventListener("click", ()=>{
+  if(confirm("最初からやり直しますか？")){
+    state=createNewState(MEMBERS.slice());
+    history.length = 0; // Undo履歴クリア
+    undoBtn.disabled = true;
+    render();
+  }
+});
+
+undoBtn.addEventListener("click", ()=>{ undo(); });
+
+exportBtn.addEventListener("click", ()=>{
+  if(!state.finished) return;
+  const blob=new Blob([buildResultLines().join("\n")],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download="akb_ranking.txt"; a.click(); URL.revokeObjectURL(url);
+});
+
+tweetBtn.addEventListener("click", ()=>{
+  if(!state.finished) return;
+  const text = composeTweetTop7();
+  const url = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
+  window.open(url, "_blank", "noopener");
+});
+
+/***********************
+ * 初期化
+ ***********************/
+let state=null;
+(async function init(){
+  IMAGE_MAP = await loadImageMapJson(); // なければ {} → 自動でプレースホルダ
+  state = loadState() ?? createNewState(MEMBERS.slice());
+  render();
+})();
+</script>
+</body>
+</html>
