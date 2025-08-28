@@ -49,24 +49,29 @@
   .same{font-size:12px; opacity:.7;}
   .footnote{opacity:.65; font-size:12px; margin-top:10px;}
 
-  @media (max-width:900px){
-    :root{--gap:10px; --card-w:clamp(140px, 44vw, 320px); --card-h:var(--card-w); --btn-h:48px;}
-    .arena{grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr);} /* ★スマホでも横並び維持 */
-    .tieCol{order:0; margin:0;}
-    .tie-btn{ width:clamp(72px, 18vw, 120px); }
-    .choice-btn{ font-size:14px; }
+@media (max-width:900px){
+  :root{
+    --gap:10px;
+    --card-w:clamp(140px, 44vw, 320px);
+    --card-h:var(--card-w);
+    --btn-h:48px;
   }
-  @media (max-width:480px){
-    :root{--card-w:clamp(120px, 42vw, 260px);} /* さらに狭い端末向けに縮小 */
-  }
-    .arena{grid-template-columns: 1fr; }
-    .tieCol{order:3; margin:10px 0;}
-  }
+  /* ← スマホでも横並びのまま */
+  .arena{ grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr); }
+  .tieCol{ order:0; margin:0; }
+  .tie-btn{ width:clamp(72px, 18vw, 120px); }
+  .choice-btn{ font-size:14px; }
+}
+@media (max-width:480px){
+  :root{ --card-w:clamp(120px, 42vw, 260px); } /* さらに狭い端末向け */
+}
+
   @media (prefers-reduced-motion: reduce){ .stage img{transition:none;} }
   /* ---- 強制横並びの最終ガード（古いCSSが残っても上書き） ---- */
-  @media (max-width:1200px){
-    .arena{ grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr) !important; }
-  }
+/* 最終ガード：常に3カラムを維持 */
+@media (max-width:1200px){
+  .arena{ grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr) !important; }
+}
 </style>
 </head>
 <body>
