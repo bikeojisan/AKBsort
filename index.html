@@ -3,37 +3,75 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AKB48ソート</title>
+<title>AKB48ソート（再構築版）</title>
 <style>
+  /*****************
+   * レイアウト変数
+   *****************/
   :root{
-    --gap: 14px;
-    --card-w: min(46vw, 420px);
-    --card-h: min(46vw, 420px);
+    --gap: 14px;                         /* カラム間隔 */
+    --card-max: clamp(150px, 42vw, 420px);/* 左右カードの最大幅（可変） */
+    --center-w: clamp(80px, 12vw, 120px); /* 真ん中列の幅（ボタン列） */
     --btn-h: 56px;
     --radius: 18px;
   }
-  body{font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Arial, sans-serif; margin:0; background:#0b0d0f; color:#eef1f4;}
-  header{display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #20252b; position:sticky; top:0; backdrop-filter: blur(6px); background:rgba(11,13,15,.7);}  
+
+  /*****************
+   * ベース
+   *****************/
+  *{box-sizing:border-box}
+  body{
+    font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Arial, sans-serif;
+    margin:0; background:#0b0d0f; color:#eef1f4;
+  }
+  header{
+    display:flex; align-items:center; gap:12px; padding:14px 16px;
+    border-bottom:1px solid #20252b; position:sticky; top:0;
+    backdrop-filter: blur(6px); background:rgba(11,13,15,.7);
+  }
   header h1{font-size:18px; margin:0; font-weight:700;}
   #progressWrap{display:flex; align-items:center; gap:12px; margin-left:auto; min-width:260px;}
   #bar{flex:1; height:10px; background:#1a1f25; border-radius:999px; overflow:hidden;}
   #bar>i{display:block; height:100%; width:0%; background:linear-gradient(90deg,#66d1ff,#7cffc4); transition:width .2s ease;}
   #pct{font-variant-numeric: tabular-nums; min-width:52px; text-align:right;}
   #count{font-variant-numeric: tabular-nums; font-size:12px; opacity:.8; white-space:nowrap;}
+
   main{max-width:1200px; margin:18px auto; padding:0 16px;}
 
-  .arena{ display:grid; gap:var(--gap); grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr); align-items:center; }
-  .side{display:flex; flex-direction:column; align-items:center; gap:12px; width:100%;}
-  .picCard{position:relative; width:100%; max-width:var(--card-w); aspect-ratio:1/1; height:auto; border-radius:var(--radius); background:#0f1317; border:1px solid #1f262d; overflow:hidden; box-shadow:0 6px 30px rgba(0,0,0,.35);}  
+  /*****************
+   * 3カラムの舞台
+   *****************/
+  .arena{
+    display:grid;
+    grid-template-columns: minmax(0,1fr) var(--center-w) minmax(0,1fr); /* 常に横3列 */
+    align-items:center;
+    gap: var(--gap);
+  }
+  .side{display:flex; flex-direction:column; align-items:center; gap:12px; width:100%; min-width:0;}
+
+  .picCard{
+    position:relative;
+    width:min(100%, var(--card-max));  /* 列幅にフィット＋上限 */
+    max-width:var(--card-max);
+    aspect-ratio:1/1; height:auto;    /* 正方形維持（高さは自動） */
+    border-radius:var(--radius); background:#0f1317; border:1px solid #1f262d;
+    overflow:hidden; box-shadow:0 6px 30px rgba(0,0,0,.35);
+  }
   .picCard .stage{position:absolute; inset:0;}
   .stage img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .24s linear; backface-visibility:hidden; transform: translateZ(0);} 
   .stage img.active{opacity:1;}
-  .choice-btn{width:100%; max-width:var(--card-w); height:var(--btn-h); border-radius:12px; border:1px solid #28323a; background:#161b20; color:#e9eef3; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 14px; cursor:pointer; transition:transform .03s ease, background .2s;}
+
+  .choice-btn{
+    width:min(100%, var(--card-max));
+    max-width:var(--card-max);
+    height:var(--btn-h); border-radius:12px; border:1px solid #28323a; background:#161b20; color:#e9eef3; font-size:16px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 14px; cursor:pointer; transition:transform .03s ease, background .2s;
+  }
   .choice-btn:hover{background:#1b2127;}
   .choice-btn:active{transform:translateY(1px);} 
 
-  .tieCol{display:flex; align-items:center; justify-content:center; place-self:center;}
-  .tie-btn{ width:140px; height:var(--btn-h); border-radius:999px; border:1px solid #28323a; background:#161b20; color:#e9eef3; cursor:pointer; transition:background .2s; }
+  .tieCol{width:var(--center-w); display:flex; align-items:center; justify-content:center;}
+  .tie-btn{ width:100%; height:var(--btn-h); border-radius:999px; border:1px solid #28323a; background:#161b20; color:#e9eef3; cursor:pointer; transition:background .2s; }
   .tie-btn:hover{ background:#1b2127; }
   .tie-btn:focus, .tie-btn:focus-visible{ outline:none; box-shadow:0 0 0 2px rgba(124,255,196,.35); }
 
@@ -49,39 +87,9 @@
   .same{font-size:12px; opacity:.7;}
   .footnote{opacity:.65; font-size:12px; margin-top:10px;}
 
-  @media (max-width:900px){
-    :root{--gap:10px; --card-w:clamp(140px, 44vw, 320px); --card-h:var(--card-w); --btn-h:48px;}
-    .arena{grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr);} /* ★スマホでも横並び維持 */
-    .tieCol{order:0; margin:0;}
-    .tie-btn{ width:clamp(72px, 18vw, 120px); }
-    .choice-btn{ font-size:14px; }
-  }
-  @media (max-width:480px){
-    :root{--card-w:clamp(120px, 42vw, 260px);} /* さらに狭い端末向けに縮小 */
-  }
-    .arena{grid-template-columns: 1fr; }
-    .tieCol{order:3; margin:10px 0;}
-  }
-  @media (prefers-reduced-motion: reduce){ .stage img{transition:none;} }
-  /* ---- 強制横並びの最終ガード（古いCSSが残っても上書き） ---- */
-  @media (max-width:1200px){
-    .arena{ grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr) !important; }
-  }
-/* --- 常に3カラムを維持（古い縦1列ルールを上書き） --- */
-.arena{
-  display: grid;
-  grid-template-columns: minmax(0,1fr) max-content minmax(0,1fr) !important;
-  align-items: center;
-}
-
-/* はみ出し・重なり防止（スマホ含む） */
-.side{ width: 100%; }
-.picCard{
-  width: 100%;
-  max-width: var(--card-w);
-  aspect-ratio: 1/1;
-  height: auto;
-}
+  /* 端末幅に応じてちょい縮小 */
+  @media (max-width: 900px){ :root{ --btn-h: 48px; --gap: 10px; --card-max: clamp(130px, 40vw, 320px);} }
+  @media (max-width: 600px){ :root{ --gap: 8px;  --card-max: clamp(120px, 38vw, 260px);} }
 </style>
 </head>
 <body>
@@ -126,7 +134,7 @@
 
 <script>
 /***********************
- * 対象メンバー（43名） *
+ * 対象メンバー（43名）
  ***********************/
 const MEMBERS = [
 "岩立沙穂","福岡聖菜","向井地美音","小栗有以","倉野尾成美","坂川陽香","下尾みう","髙橋彩音",
@@ -140,12 +148,11 @@ const MEMBERS = [
 /***********************
  * 要素参照
  ***********************/
-const $ = s=>document.querySelector(s);
-const stageL=$("#stageL"), stageR=$("#stageR");
-const btnL=$("#btnL"), btnR=$("#btnR"), btnTie=$("#btnTie");
-const bar=$("#bar>i"), pct=$("#pct"), countEl=$("#count");
-const arena=$("#arena"), resultWrap=$("#resultWrap"), resultList=$("#resultList");
-const resetBtn=$("#resetBtn"), undoBtn=$("#undoBtn"), exportBtn=$("#exportBtn"), tweetBtn=$("#tweetBtn");
+const stageL=document.querySelector("#stageL"), stageR=document.querySelector("#stageR");
+const btnL=document.querySelector("#btnL"), btnR=document.querySelector("#btnR"), btnTie=document.querySelector("#btnTie");
+const bar=document.querySelector("#bar>i"), pct=document.querySelector("#pct"), countEl=document.querySelector("#count");
+const arena=document.querySelector("#arena"), resultWrap=document.querySelector("#resultWrap"), resultList=document.querySelector("#resultList");
+const resetBtn=document.querySelector("#resetBtn"), undoBtn=document.querySelector("#undoBtn"), exportBtn=document.querySelector("#exportBtn"), tweetBtn=document.querySelector("#tweetBtn");
 
 /***********************
  * 進捗イージング（初期0%固定）
@@ -179,14 +186,8 @@ const placeholderSrc = (name)=>`https://placehold.co/800x800/png?text=${encodeUR
 function ensureStages(stageEl){
   if(stageEl.children.length===0){
     const a=document.createElement("img"), b=document.createElement("img");
-    for (const el of [a,b]){
-      el.decoding="async";
-      el.referrerPolicy="no-referrer";
-      el.loading="eager";
-      el.alt=""; // 後で名前を入れる
-    }
-    stageEl.appendChild(a); stageEl.appendChild(b);
-    a.className="active";
+    for (const el of [a,b]){ el.decoding="async"; el.referrerPolicy="no-referrer"; el.loading="eager"; el.alt=""; }
+    stageEl.appendChild(a); stageEl.appendChild(b); a.className="active";
   }
 }
 function showImage(stageEl, name){
@@ -194,23 +195,14 @@ function showImage(stageEl, name){
   const imgA=stageEl.children[0], imgB=stageEl.children[1];
   const active=imgA.classList.contains("active")?imgA:imgB;
   const idle=active===imgA?imgB:imgA;
-
   const primary = IMAGE_MAP[name] || placeholderSrc(name);
   const candidates = [primary];
   if(!primary.includes("placehold.co")) candidates.push(placeholderSrc(name));
-
-  function swapTo(src){
-    idle.src = src;
-    idle.alt = name;
-    active.alt = name;
-    requestAnimationFrame(()=>{ active.classList.remove("active"); idle.classList.add("active"); });
-  }
-
+  function swapTo(src){ idle.src=src; idle.alt=name; active.alt=name; requestAnimationFrame(()=>{ active.classList.remove("active"); idle.classList.add("active"); }); }
   function tryLoad(idx){
     const src=candidates[idx];
     if(cache.has(src)) return swapTo(src);
-    const tmp=new Image();
-    tmp.referrerPolicy="no-referrer";
+    const tmp=new Image(); tmp.referrerPolicy="no-referrer";
     tmp.onload=()=>{ cache.set(src,true); swapTo(src); };
     tmp.onerror=()=>{ if(idx+1<candidates.length) tryLoad(idx+1); else { const fb=placeholderSrc(name); cache.set(fb,true); swapTo(fb); } };
     tmp.src=src;
@@ -219,54 +211,34 @@ function showImage(stageEl, name){
 }
 
 /***********************
- * 最適マージ（ハフマン型）- ヒープ実装
+ * 比較回数の理論上限（初期）と動的分母
  ***********************/
 function computeOptimalTotal(n){
   if(n<=1) return 0;
-  // 初期は 1 を n 個
   const heap = Array(n).fill(1);
-  const up = (i)=>{ while(i>0){ const p=(i-1)>>1; if(heap[p]<=heap[i]) break; [heap[p],heap[i]]=[heap[i],heap[p]]; i=p; } };
-  const down = (i)=>{ for(;;){ let l=i*2+1, r=l+1, s=i; if(l<heap.length && heap[l]<heap[s]) s=l; if(r<heap.length && heap[r]<heap[s]) s=r; if(s===i) break; [heap[i],heap[s]]=[heap[s],heap[i]]; i=s; } };
+  const up=(i)=>{while(i>0){const p=(i-1)>>1;if(heap[p]<=heap[i])break;[heap[p],heap[i]]=[heap[i],heap[p]];i=p;}};
+  const down=(i)=>{for(;;){let l=i*2+1,r=l+1,s=i;if(l<heap.length&&heap[l]<heap[s])s=l;if(r<heap.length&&heap[r]<heap[s])s=r;if(s===i)break;[heap[i],heap[s]]=[heap[s],heap[i]];i=s;}};
   for(let i=(heap.length>>1)-1;i>=0;i--) down(i);
-  const pop=()=>{ const x=heap[0]; const y=heap.pop(); if(heap.length){ heap[0]=y; down(0);} return x; };
-  const push=(v)=>{ heap.push(v); up(heap.length-1); };
-
-  let total=0;
-  while(heap.length>1){
-    const a=pop(), b=pop();
-    total += (a+b-1);
-    push(a+b);
-  }
-  return total;
+  const pop=()=>{const x=heap[0];const y=heap.pop();if(heap.length){heap[0]=y;down(0);}return x;};
+  const push=(v)=>{heap.push(v);up(heap.length-1);};
+  let total=0; while(heap.length>1){ const a=pop(), b=pop(); total+=(a+b-1); push(a+b);} return total;
 }
-
-// 任意のランサイズ配列に対するハフマン型コスト（上界）
 function huffmanCostFromSizes(sizes){
-  const heap = sizes.filter(x=>x>0).slice();
-  if(heap.length<=1) return 0;
-  const up = (i)=>{ while(i>0){ const p=(i-1)>>1; if(heap[p]<=heap[i]) break; [heap[p],heap[i]]=[heap[i],heap[p]]; i=p; } };
-  const down = (i)=>{ for(;;){ let l=i*2+1, r=l+1, s=i; if(l<heap.length && heap[l]<heap[s]) s=l; if(r<heap.length && heap[r]<heap[s]) s=r; if(s===i) break; [heap[i],heap[s]]=[heap[s],heap[i]]; i=s; } };
+  const heap = sizes.filter(x=>x>0).slice(); if(heap.length<=1) return 0;
+  const up=(i)=>{while(i>0){const p=(i-1)>>1;if(heap[p]<=heap[i])break;[heap[p],heap[i]]=[heap[i],heap[p]];i=p;}};
+  const down=(i)=>{for(;;){let l=i*2+1,r=l+1,s=i;if(l<heap.length&&heap[l]<heap[s])s=l;if(r<heap.length&&heap[r]<heap[s])s=r;if(s===i)break;[heap[i],heap[s]]=[heap[s],heap[i]];i=s;}};
   for(let i=(heap.length>>1)-1;i>=0;i--) down(i);
-  const pop=()=>{ const x=heap[0]; const y=heap.pop(); if(heap.length){ heap[0]=y; down(0);} return x; };
-  const push=(v)=>{ heap.push(v); up(heap.length-1); };
-
-  let cost=0;
-  while(heap.length>1){
-    const a=pop(), b=pop();
-    cost += (a+b-1);
-    push(a+b);
-  }
-  return cost;
+  const pop=()=>{const x=heap[0];const y=heap.pop();if(heap.length){heap[0]=y;down(0);}return x;};
+  const push=(v)=>{heap.push(v);up(heap.length-1);};
+  let cost=0; while(heap.length>1){ const a=pop(), b=pop(); cost+=(a+b-1); push(a+b);} return cost;
 }
-
-// 現在の状態から見た「残り比較回数」の上界を用いて動的な分母を再計算
 function recomputeTotalUpperBound(s){
   const otherSizes = s.runs.map(r=>r.length);
   if(s.active){
     const leftRem = s.active.left.length - s.active.i;
     const rightRem = s.active.right.length - s.active.j;
     const mergedSoFar = s.active.merged.length;
-    const pairCost = (leftRem>0 && rightRem>0) ? (leftRem + rightRem - 1) : 0; // 上界
+    const pairCost = (leftRem>0 && rightRem>0) ? (leftRem + rightRem - 1) : 0;
     const newRunSize = mergedSoFar + leftRem + rightRem;
     const sizesAfter = newRunSize>0 ? [newRunSize, ...otherSizes] : otherSizes.slice();
     return s.done + pairCost + huffmanCostFromSizes(sizesAfter);
@@ -275,279 +247,99 @@ function recomputeTotalUpperBound(s){
 }
 
 /***********************
- * State 型定義（JSDoc）
+ * State 型 & 永続化
  ***********************/
-/**
- * @typedef {{left:string[], right:string[], i:number, j:number, merged:string[]}} ActiveRun
- * @typedef {{ runs: string[][], active: ActiveRun|null, done: number, total: number, ties: Map<string, Set<string>>, finished: boolean, final: string[] }} SortState
- */
+/** @typedef {{left:string[], right:string[], i:number, j:number, merged:string[]}} ActiveRun */
+/** @typedef {{runs:string[][], active:ActiveRun|null, done:number, total:number, ties:Map<string,Set<string>>, finished:boolean, final:string[]}} SortState */
 
-/***********************
- * State の生成・保存・復元
- ***********************/
-const STORAGE_KEY="akb-ranker-optimal-merge-ease-share-v3"; // ★v3: Undo搭載
+const STORAGE_KEY = "akb-ranker-v4"; // 新キー
 
 function createNewState(names){
-  /** @type {SortState} */
-  return {
-    runs: names.map(n=>[n]),
-    active: null,
-    done: 0,
-    total: computeOptimalTotal(names.length),
-    ties: new Map(),
-    finished: false,
-    final: []
-  };
+  return { runs:names.map(n=>[n]), active:null, done:0, total:computeOptimalTotal(names.length), ties:new Map(), finished:false, final:[] };
 }
-
-function serializeState(s){
-  const tiesObj = {};
-  s.ties.forEach((set, k)=>{ tiesObj[k] = Array.from(set); });
-  return JSON.stringify({ runs: s.runs, active: s.active, done: s.done, total: s.total, ties: tiesObj, finished: s.finished, final: s.final });
-}
-function deserializeState(json){
-  try{
-    const o = JSON.parse(json);
-    const ties = new Map(Object.entries(o.ties||{}).map(([k,arr])=>[k,new Set(arr)]));
-    return { runs:o.runs, active:o.active, done:o.done, total:o.total, ties, finished:o.finished, final:o.final };
-  }catch(e){ return null; }
-}
-
-function saveState(s){
-  localStorage.setItem(STORAGE_KEY, serializeState(s));
-}
-function loadState(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return null;
-    return deserializeState(raw);
-  }catch(e){ return null; }
-}
-
-// localStorage 書き込みを軽減（~1フレーム）
+function serializeState(s){ const tiesObj={}; s.ties.forEach((set,k)=>{tiesObj[k]=Array.from(set)}); return JSON.stringify({runs:s.runs,active:s.active,done:s.done,total:s.total,ties:tiesObj,finished:s.finished,final:s.final}); }
+function deserializeState(json){ try{ const o=JSON.parse(json); const ties=new Map(Object.entries(o.ties||{}).map(([k,arr])=>[k,new Set(arr)])); return {runs:o.runs,active:o.active,done:o.done,total:o.total,ties,finished:o.finished,final:o.final}; }catch{ return null; } }
+function saveState(s){ localStorage.setItem(STORAGE_KEY, serializeState(s)); }
+function loadState(){ try{ const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return null; return deserializeState(raw);}catch{ return null; } }
 const saveStateDebounced = (()=>{ let t=null; return (s)=>{ clearTimeout(t); t=setTimeout(()=>saveState(s), 16); }; })();
 
 /***********************
- * マージ進行
+ * マージ進行 & 操作
  ***********************/
 function prepareNextPair(s){
   if(s.active && s.active.i < s.active.left.length && s.active.j < s.active.right.length) return;
-
   if(s.active){
     const a=s.active;
     while(a.i<a.left.length)  a.merged.push(a.left[a.i++]);
     while(a.j<a.right.length) a.merged.push(a.right[a.j++]);
-    s.runs.push(a.merged);
-    s.active = null;
+    s.runs.push(a.merged); s.active=null;
   }
-
-  if(s.runs.length===1){
-    s.finished = true;
-    s.final = s.runs[0];
-    return;
-  }
-
-  if(s.runs.length>=2){
-    s.runs.sort((A,B)=>A.length-B.length);
-    const left  = s.runs.shift();
-    const right = s.runs.shift();
-    s.active = { left, right, i:0, j:0, merged:[] };
-    return prepareNextPair(s);
-  }
+  if(s.runs.length===1){ s.finished=true; s.final=s.runs[0]; return; }
+  if(s.runs.length>=2){ s.runs.sort((A,B)=>A.length-B.length); const left=s.runs.shift(), right=s.runs.shift(); s.active={left,right,i:0,j:0,merged:[]}; return prepareNextPair(s); }
 }
 
-/***********************
- * Undo（スナップショット方式）
- ***********************/
-const history = [];
-function pushHistory(s){ history.push(serializeState(s)); undoBtn.disabled = history.length===0; }
-function canUndo(){ return history.length>0; }
-function undo(){
-  if(!canUndo()) return;
-  const snap = history.pop();
-  const prev = deserializeState(snap);
-  if(prev){ state = prev; render(/*no snapshot*/ true); }
-  undoBtn.disabled = history.length===0;
-}
+// Undo（スナップショット方式）
+const history=[]; function pushHistory(s){ history.push(serializeState(s)); undoBtn.disabled = history.length===0; }
+function undo(){ if(!history.length) return; const snap=history.pop(); const prev=deserializeState(snap); if(prev){ state=prev; render(true); } undoBtn.disabled = history.length===0; }
 
-/***********************
- * 1手進める
- ***********************/
 function pick(s, which){
-  if(s.finished) return;
-  prepareNextPair(s); if(s.finished) return;
-
-  // スナップショット保存（Undo用）
-  pushHistory(s);
-
-  const a=s.active;
-  const L=a.left[a.i], R=a.right[a.j];
-
+  if(s.finished) return; prepareNextPair(s); if(s.finished) return;
+  pushHistory(s); // for undo
+  const a=s.active; const L=a.left[a.i], R=a.right[a.j];
   if(which==="L"){ a.merged.push(L); a.i++; }
   else if(which==="R"){ a.merged.push(R); a.j++; }
-  else { // 引き分け
-    a.merged.push(L); a.merged.push(R); a.i++; a.j++;
-    if(!s.ties.has(L)) s.ties.set(L,new Set());
-    if(!s.ties.has(R)) s.ties.set(R,new Set());
-    s.ties.get(L).add(R); s.ties.get(R).add(L);
-  }
-  s.done++;
-  prepareNextPair(s);
+  else { a.merged.push(L); a.merged.push(R); a.i++; a.j++; if(!s.ties.has(L)) s.ties.set(L,new Set()); if(!s.ties.has(R)) s.ties.set(R,new Set()); s.ties.get(L).add(R); s.ties.get(R).add(L); }
+  s.done++; prepareNextPair(s);
 }
 
 /***********************
- * 画面更新
+ * 描画
  ***********************/
 function updateProgress(s){
   const totalDyn = recomputeTotalUpperBound(s);
-  const p = easedPercent(s.done, totalDyn, s.finished);
   if (s.finished) {
-    bar.style.width = "100%";
-    pct.textContent = "100%";
-    countEl.textContent = `比較: ${s.done} / ${s.done}`;
+    bar.style.width = "100%"; pct.textContent = "100%"; countEl.textContent = `比較: ${s.done} / ${s.done}`;
   } else {
-    bar.style.width = p + "%";
-    pct.textContent = p + "%";
-    countEl.textContent = `比較: ${s.done} / ${totalDyn}`;
+    const p = easedPercent(s.done, totalDyn, s.finished);
+    bar.style.width = p + "%"; pct.textContent = p + "%"; countEl.textContent = `比較: ${s.done} / ${totalDyn}`;
   }
 }
 
-function render(skipSnapshot){
+function render(skipSave){
   updateProgress(state);
-  // 結果ボタンの表示
   const finished = !!state.finished;
-  exportBtn.classList.toggle("hidden", !finished);
-  tweetBtn.classList.toggle("hidden", !finished);
-
-  // Undo 利用可否
+  exportBtn.classList.toggle("hidden", !finished); tweetBtn.classList.toggle("hidden", !finished);
   undoBtn.disabled = history.length===0;
-
-  if(finished){
-    arena.classList.add("hidden");
-    resultWrap.classList.remove("hidden");
-    renderResult();
-    if(!skipSnapshot) saveStateDebounced(state);
-    return;
-  }
-
+  if(finished){ arena.classList.add("hidden"); resultWrap.classList.remove("hidden"); renderResult(); if(!skipSave) saveStateDebounced(state); return; }
   prepareNextPair(state); if(state.finished){ render(); return; }
   const a=state.active, L=a.left[a.i], R=a.right[a.j];
-
-  showImage(stageL, L); showImage(stageR, R);
-  btnL.textContent=L; btnR.textContent=R;
-
-  arena.classList.remove("hidden"); resultWrap.classList.add("hidden");
-  if(!skipSnapshot) saveStateDebounced(state);
+  showImage(stageL, L); showImage(stageR, R); btnL.textContent=L; btnR.textContent=R;
+  arena.classList.remove("hidden"); resultWrap.classList.add("hidden"); if(!skipSave) saveStateDebounced(state);
 }
 
-/***********************
- * 結果表示
- ***********************/
 function buildTieGroupsInOrder(){
-  const adj = state.ties;
-  const seen = new Set();
-  const groups = [];
-  for(const name of state.final){
-    if(seen.has(name)) continue;
-    const group = [];
-    const q=[name]; seen.add(name);
-    while(q.length){
-      const u=q.shift(); group.push(u);
-      if(adj.has(u)){
-        for(const v of adj.get(u)){
-          if(!seen.has(v)){ seen.add(v); q.push(v); }
-        }
-      }
-    }
-    groups.push(group);
-  }
+  const adj=state.ties, seen=new Set(), groups=[];
+  for(const name of state.final){ if(seen.has(name)) continue; const group=[], q=[name]; seen.add(name); while(q.length){ const u=q.shift(); group.push(u); if(adj.has(u)){ for(const v of adj.get(u)){ if(!seen.has(v)){ seen.add(v); q.push(v); } } } } groups.push(group); }
   return groups;
 }
-
 function renderResult(){
-  resultList.innerHTML="";
-  const groups = buildTieGroupsInOrder();
-  let rank = 1;
-  for(const group of groups){
-    const row=document.createElement("div"); row.className="rankRow";
-    const no=document.createElement("div"); no.className="rankNo"; no.textContent=rank;
-    const names=document.createElement("div"); names.textContent=group.join(" / ");
-    const same=document.createElement("div"); same.className="same"; same.textContent=group.length>1?"（同率）":"";
-    row.appendChild(no); row.appendChild(names); row.appendChild(same);
-    resultList.appendChild(row);
-    rank += group.length;
-  }
+  resultList.innerHTML=""; const groups=buildTieGroupsInOrder(); let rank=1;
+  for(const g of groups){ const row=document.createElement("div"); row.className="rankRow"; const no=document.createElement("div"); no.className="rankNo"; no.textContent=rank; const names=document.createElement("div"); names.textContent=g.join(" / "); const same=document.createElement("div"); same.className="same"; same.textContent=g.length>1?"（同率）":""; row.appendChild(no); row.appendChild(names); row.appendChild(same); resultList.appendChild(row); rank += g.length; }
 }
 
-/***********************
- * エクスポート & 共有（X）
- ***********************/
-function buildResultLines(){
-  const groups = buildTieGroupsInOrder();
-  const lines = [];
-  let rank = 1;
-  for(const g of groups){
-    lines.push(`${rank}. ${g.join(" / ")}`);
-    rank += g.length;
-  }
-  return lines;
-}
-
-function buildTopNLines(n){
-  const groups = buildTieGroupsInOrder();
-  const lines = [];
-  let rank = 1;
-  for(const g of groups){
-    if(rank > n) break;
-    lines.push(`${rank}. ${g.join(" / ")}`);
-    rank += g.length;
-  }
-  return lines;
-}
-
-function composeTweetTop7(){
-  const MAX = 280;
-  const header = "AKB48推しソート上位7位";
-  const tags = "#AKB48 #推しソート";
-  const lines = buildTopNLines(7);
-
-  let parts = [header];
-  for(const line of lines){
-    const next = parts.join("\n") + "\n" + line;
-    if(next.length <= MAX){ parts.push(line); }
-    else {
-      const remain = lines.length - (parts.length-1);
-      const tail = `…他${remain}行`;
-      if((parts.join("\n")+"\n"+tail).length <= MAX) parts.push(tail);
-      break;
-    }
-  }
-  let text = parts.join("\n");
-  if ((text+"\n"+tags).length <= MAX) text += "\n" + tags;
-  return text;
-}
+function buildResultLines(){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ lines.push(`${rank}. ${g.join(" / ")}`); rank+=g.length; } return lines; }
+function buildTopNLines(n){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ if(rank>n) break; lines.push(`${rank}. ${g.join(" / ")}`); rank+=g.length; } return lines; }
+function composeTweetTop7(){ const MAX=280, header="AKB48推しソート上位7位", tags="#AKB48 #推しソート", lines=buildTopNLines(7); let parts=[header]; for(const line of lines){ const next=parts.join("\n")+"\n"+line; if(next.length<=MAX){ parts.push(line);} else { const remain=lines.length-(parts.length-1); const tail=`…他${remain}行`; if((parts.join("\n")+"\n"+tail).length<=MAX) parts.push(tail); break; } } let text=parts.join("\n"); if((text+"\n"+tags).length<=MAX) text += "\n"+tags; return text; }
 
 /***********************
  * イベント
  ***********************/
 function onChoose(which){ pick(state, which); render(); }
-
-// 入力イベントは二重発火防止のため、PointerEvent が使える環境では pointerdown のみ
 const USE_POINTER = window.PointerEvent !== undefined;
 const bind = (el, type, which) => el.addEventListener(type, (e)=>{ e.preventDefault(); onChoose(which); }, { passive:false });
+if (USE_POINTER) { bind(btnL,'pointerdown','L'); bind(btnR,'pointerdown','R'); bind(btnTie,'pointerdown','T'); }
+else { bind(btnL,'click','L'); bind(btnR,'click','R'); bind(btnTie,'click','T'); }
 
-if (USE_POINTER) {
-  bind(btnL, 'pointerdown', 'L');
-  bind(btnR, 'pointerdown', 'R');
-  bind(btnTie, 'pointerdown', 'T');
-} else {
-  // フォールバック（旧ブラウザ）: click のみ
-  bind(btnL, 'click', 'L');
-  bind(btnR, 'click', 'R');
-  bind(btnTie, 'click', 'T');
-}
-
-// キーボード操作: ←/→/↓ or Space、Ctrl+Z でUndo
 document.addEventListener("keydown",(e)=>{
   if(e.ctrlKey && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); return; }
   if(state.finished) return;
@@ -556,40 +348,16 @@ document.addEventListener("keydown",(e)=>{
   else if(e.key==="ArrowDown" || e.key===" "){ e.preventDefault(); onChoose("T"); }
 });
 
-resetBtn.addEventListener("click", ()=>{
-  if(confirm("最初からやり直しますか？")){
-    state=createNewState(MEMBERS.slice());
-    history.length = 0; // Undo履歴クリア
-    undoBtn.disabled = true;
-    render();
-  }
-});
-
+resetBtn.addEventListener("click", ()=>{ if(confirm("最初からやり直しますか？")){ state=createNewState(MEMBERS.slice()); history.length=0; undoBtn.disabled=true; render(); } });
 undoBtn.addEventListener("click", ()=>{ undo(); });
-
-exportBtn.addEventListener("click", ()=>{
-  if(!state.finished) return;
-  const blob=new Blob([buildResultLines().join("\n")],{type:"text/plain;charset=utf-8"});
-  const url=URL.createObjectURL(blob); const a=document.createElement("a");
-  a.href=url; a.download="akb_ranking.txt"; a.click(); URL.revokeObjectURL(url);
-});
-
-tweetBtn.addEventListener("click", ()=>{
-  if(!state.finished) return;
-  const text = composeTweetTop7();
-  const url = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text);
-  window.open(url, "_blank", "noopener");
-});
+exportBtn.addEventListener("click", ()=>{ if(!state.finished) return; const blob=new Blob([buildResultLines().join("\n")],{type:"text/plain;charset=utf-8"}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download="akb_ranking.txt"; a.click(); URL.revokeObjectURL(url); });
+tweetBtn.addEventListener("click", ()=>{ if(!state.finished) return; const text=composeTweetTop7(); const url="https://twitter.com/intent/tweet?text="+encodeURIComponent(text); window.open(url, "_blank", "noopener"); });
 
 /***********************
  * 初期化
  ***********************/
 let state=null;
-(async function init(){
-  IMAGE_MAP = await loadImageMapJson(); // なければ {} → 自動でプレースホルダ
-  state = loadState() ?? createNewState(MEMBERS.slice());
-  render();
-})();
+(async function init(){ IMAGE_MAP = await loadImageMapJson(); state = loadState() ?? createNewState(MEMBERS.slice()); render(); })();
 </script>
 </body>
 </html>
