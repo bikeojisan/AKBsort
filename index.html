@@ -61,18 +61,18 @@
 
   /* aspect-ratio未対応ブラウザ フォールバック */
   @supports not (aspect-ratio: 1/1){
-    .picCard{ position:relative; height:auto; }
-    .picCard::before{ content:""; display:block; width:100%; padding-top:100%; }
-    .picCard .stage{ position:absolute; inset:0; }
+  .picCard{ position:relative; height:auto; }
+  .picCard::before{ content:""; display:block; width:100%; padding-top:100%; }
+  .picCard .stage{ position:absolute; inset:0; }
   }
 
-/* PVパネルがはみ出す時は折り返す */
-header{ flex-wrap: wrap; }
+  /* PVパネルがはみ出す時は折り返す */
+  header{ flex-wrap: wrap; }
 
-/* スマホ幅ではPVを1行下にフル幅で表示 */
-@media (max-width: 600px){
+  /* スマホ幅ではPVを1行下にフル幅で表示 */
+  @media (max-width: 600px){
   #pvPanel{ width:100%; margin-left:0; margin-top:8px; }
-}
+  }
 
 
   /* メンバー選択UI */
@@ -565,7 +565,6 @@ tweetBtn.addEventListener("click", ()=>{
   window.open(share.toString(), "_blank", "noopener");
 });
 
-
 /* メンバー選択UI */
 editBtn?.addEventListener('click', ()=>{
   selectedSet = loadSelected();
@@ -613,9 +612,8 @@ let state=null;
     state = savedState;
     toggleSetup(false); // ← 既存の続きがあればそのまま本編表示
   }else{
-    // ★初回もメンバー選択は開かず、本編から開始（選択は保存 or 全員）
     state = createNewState(SELECTED.slice());
-    toggleSetup(false); // ← ここを true にしないのがポイント
+    toggleSetup(false);
   }
   render();
 })();
@@ -623,19 +621,17 @@ let state=null;
 </script>
 
 <script>
-/* サイレントPVカウンター（画面には一切出さない） */
+/* サイレントPVカウンター */
 (function(){
-  // 誰にも推測されない長い識別子にしておくと安心（適宜変えてOK）
   const NS = "akbsort-3e1f9c2c-2a5b-4f22-9dbf-0f8e8c7a7d9b";
 
   const todayKey = "d-" + new Date().toISOString().slice(0,10).replace(/-/g,""); // d-YYYYMMDD
   const hit = k => fetch(`https://api.countapi.xyz/hit/${encodeURIComponent(NS)}/${encodeURIComponent(k)}`).catch(()=>{});
 
-  // 総PVと当日PVを加算（画面表示はしない）
+  // 総PVと当日PVを加算
   hit("total");
   hit(todayKey);
 
-  // ▼管理者だけ確認したい時用（?admin=1 をURL末尾に付けると小さな浮遊パネルが出ます）
   if (new URLSearchParams(location.search).get("admin") === "1") {
     const box = document.createElement("div");
     Object.assign(box.style, {
