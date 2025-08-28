@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AKB48ソート（再構築版）</title>
+<title>AKB48ソート</title>
 <style>
   /*****************
    * レイアウト変数
@@ -90,6 +90,13 @@
   /* 端末幅に応じてちょい縮小 */
   @media (max-width: 900px){ :root{ --btn-h: 48px; --gap: 10px; --card-max: clamp(130px, 40vw, 320px);} }
   @media (max-width: 600px){ :root{ --gap: 8px;  --card-max: clamp(120px, 38vw, 260px);} }
+
+/* ===== aspect-ratio未対応ブラウザのフォールバック ===== */
+@supports not (aspect-ratio: 1/1){
+  .picCard{ position:relative; height:auto; }
+  .picCard::before{ content:""; display:block; width:100%; padding-top:100%; }
+  .picCard .stage{ position:absolute; inset:0; }
+} }
 </style>
 </head>
 <body>
@@ -181,7 +188,17 @@ async function loadImageMapJson(){
   }catch(e){ return {}; }
 }
 const cache = new Map();
-const placeholderSrc = (name)=>`https://placehold.co/800x800/png?text=${encodeURIComponent(name)}`;
+// 外部に依存しないプレースホルダ（日本語テキスト対応のSVG）
+const placeholderSrc = (name)=>{
+  const text = encodeURIComponent(name);
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'>
+`+
+              `<defs><style><![CDATA[text{font-family: system-ui, -apple-system, Noto Sans JP, Arial; font-size:48px; fill:#cfd5dc;}]]></style></defs>`+
+              `<rect width='100%' height='100%' fill='#11161b'/>`+
+              `<text x='50%' y='50%' text-anchor='middle' dominant-baseline='middle'>${name}</text>`+
+              `</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
 
 function ensureStages(stageEl){
   if(stageEl.children.length===0){
@@ -323,12 +340,41 @@ function buildTieGroupsInOrder(){
   return groups;
 }
 function renderResult(){
-  resultList.innerHTML=""; const groups=buildTieGroupsInOrder(); let rank=1;
-  for(const g of groups){ const row=document.createElement("div"); row.className="rankRow"; const no=document.createElement("div"); no.className="rankNo"; no.textContent=rank; const names=document.createElement("div"); names.textContent=g.join(" / "); const same=document.createElement("div"); same.className="same"; same.textContent=g.length>1?"（同率）":""; row.appendChild(no); row.appendChild(names); row.appendChild(same); resultList.appendChild(row); rank += g.length; }
+  resultList.innerHTML="";
+  const groups = buildTieGroupsInOrder();
+  let rank = 1;
+  for(const group of groups){
+    for(const name of group){
+      const row=document.createElement("div"); row.className="rankRow";
+      const no=document.createElement("div"); no.className="rankNo"; no.textContent=rank;
+      const nm=document.createElement("div"); nm.textContent=name;
+      row.appendChild(no); row.appendChild(nm);
+      resultList.appendChild(row);
+    }
+    rank += group.length;
+  }
+}
 }
 
-function buildResultLines(){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ lines.push(`${rank}. ${g.join(" / ")}`); rank+=g.length; } return lines; }
-function buildTopNLines(n){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ if(rank>n) break; lines.push(`${rank}. ${g.join(" / ")}`); rank+=g.length; } return lines; }
+function buildResultLines(){
+  const groups=buildTieGroupsInOrder();
+  const lines=[]; let rank=1;
+  for(const g of groups){
+    for(const name of g){ lines.push(`${rank}. ${name}`); }
+    rank+=g.length;
+  }
+  return lines;
+}. ${g.join(" / ")}`); rank+=g.length; } return lines; }
+function buildTopNLines(n){
+  const groups=buildTieGroupsInOrder();
+  const lines=[]; let rank=1;
+  for(const g of groups){
+    if(rank>n) break;
+    for(const name of g){ lines.push(`${rank}. ${name}`); }
+    rank+=g.length;
+  }
+  return lines;
+}. ${g.join(" / ")}`); rank+=g.length; } return lines; }
 function composeTweetTop7(){ const MAX=280, header="AKB48推しソート上位7位", tags="#AKB48 #推しソート", lines=buildTopNLines(7); let parts=[header]; for(const line of lines){ const next=parts.join("\n")+"\n"+line; if(next.length<=MAX){ parts.push(line);} else { const remain=lines.length-(parts.length-1); const tail=`…他${remain}行`; if((parts.join("\n")+"\n"+tail).length<=MAX) parts.push(tail); break; } } let text=parts.join("\n"); if((text+"\n"+tags).length<=MAX) text += "\n"+tags; return text; }
 
 /***********************
