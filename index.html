@@ -66,6 +66,15 @@
     .picCard .stage{ position:absolute; inset:0; }
   }
 
+/* PVパネルがはみ出す時は折り返す */
+header{ flex-wrap: wrap; }
+
+/* スマホ幅ではPVを1行下にフル幅で表示 */
+@media (max-width: 600px){
+  #pvPanel{ width:100%; margin-left:0; margin-top:8px; }
+}
+
+
   /* メンバー選択UI */
   .setup-toolbar{ display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:10px; }
   .setup-toolbar input{ height:36px; border-radius:10px; border:1px solid #28323a; background:#12171c; color:#e9eef3; padding:0 10px; }
@@ -612,5 +621,43 @@ let state=null;
 })();
 
 </script>
+
+<script>
+/* サイレントPVカウンター（画面には一切出さない） */
+(function(){
+  // 誰にも推測されない長い識別子にしておくと安心（適宜変えてOK）
+  const NS = "akbsort-3e1f9c2c-2a5b-4f22-9dbf-0f8e8c7a7d9b";
+
+  const todayKey = "d-" + new Date().toISOString().slice(0,10).replace(/-/g,""); // d-YYYYMMDD
+  const hit = k => fetch(`https://api.countapi.xyz/hit/${encodeURIComponent(NS)}/${encodeURIComponent(k)}`).catch(()=>{});
+
+  // 総PVと当日PVを加算（画面表示はしない）
+  hit("total");
+  hit(todayKey);
+
+  // ▼管理者だけ確認したい時用（?admin=1 をURL末尾に付けると小さな浮遊パネルが出ます）
+  if (new URLSearchParams(location.search).get("admin") === "1") {
+    const box = document.createElement("div");
+    Object.assign(box.style, {
+      position:"fixed", right:"10px", bottom:"10px", zIndex:9999,
+      background:"#0f1317", border:"1px solid #1f262d", borderRadius:"12px",
+      padding:"8px 10px", fontSize:"12px", display:"flex", gap:"8px", alignItems:"center"
+    });
+    box.innerHTML = `👀 PV <b id="pvTotal">—</b> ｜ 今日 <b id="pvToday">—</b>`;
+    document.body.appendChild(box);
+
+    const get = k => fetch(`https://api.countapi.xyz/get/${encodeURIComponent(NS)}/${encodeURIComponent(k)}`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => (j && typeof j.value === "number") ? j.value : null)
+      .catch(()=>null);
+
+    Promise.all([get("total"), get(todayKey)]).then(([t,d])=>{
+      if (t!=null) document.getElementById("pvTotal").textContent = t.toLocaleString("ja-JP");
+      if (d!=null) document.getElementById("pvToday").textContent = d.toLocaleString("ja-JP");
+    });
+  }
+})();
+</script>
+
 </body>
 </html>
