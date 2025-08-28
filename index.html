@@ -97,7 +97,7 @@
     <button id="resetBtn" title="最初からやり直す">🔄 はじめから</button>
     <button id="editBtn" title="メンバーを選ぶ">👥 メンバー選択</button>
     <button id="undoBtn" title="1手戻す" disabled>↩ 戻す</button>
-    <button id="exportBtn" class="hidden" title="結果をテキストとして保存">📄 結果をテキスト化</button>
+    <button id="exportBtn" class="hidden" title="結果をテキストとして保存">📄 結果を保存</button>
     <button id="tweetBtn"  class="hidden" title="上位7位をXで共有">𝕏 結果を共有</button>
   </div>
 
@@ -469,7 +469,7 @@ function renderResult(){
 
 function buildResultLines(){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ for(const name of g){ lines.push(`${rank}. ${name}`); } rank+=g.length; } return lines; }
 function buildTopNLines(n){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ if(rank>n) break; for(const name of g){ lines.push(`${rank}. ${name}`); } rank+=g.length; } return lines; }
-function composeTweetTop7(){ const MAX=280, header="AKB48推しソート上位7位", tags="#AKB48 #推しソート", lines=buildTopNLines(7); let parts=[header]; for(const line of lines){ const next=parts.join("\n")+"\n"+line; if(next.length<=MAX){ parts.push(line);} else { const remain=lines.length-(parts.length-1); const tail=`…他${remain}行`; if((parts.join("\n")+"\n"+tail).length<=MAX) parts.push(tail); break; } } let text=parts.join("\n"); if((text+"\n"+tags).length<=MAX) text += "\n"+tags; return text; }
+function composeTweetTop7(){ const MAX=280, header="AKB48ソート結果", tags="#AKBソート", lines=buildTopNLines(7); let parts=[header]; for(const line of lines){ const next=parts.join("\n")+"\n"+line; if(next.length<=MAX){ parts.push(line);} else { const remain=lines.length-(parts.length-1); const tail=`…他${remain}行`; if((parts.join("\n")+"\n"+tail).length<=MAX) parts.push(tail); break; } } let text=parts.join("\n"); if((text+"\n"+tags).length<=MAX) text += "\n"+tags; return text; }
 
 /* ===== 入力イベント ===== */
 function onChoose(which){ pick(state, which); render(); }
