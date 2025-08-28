@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AKB48ソート</title>
 <style>
-  /* BUILD: clean-rebuild v3 */
+  /* BUILD: clean-rebuild v3 (with fixes) */
   :root{
     --gap: 14px;
-    --card-max: clamp(150px, 42vw, 420px); /* 左右カードの最大幅（可変） */
-    --center-w: clamp(80px, 12vw, 120px);  /* 真ん中列の幅（ボタン列） */
+    --card-max: clamp(150px, 42vw, 420px);
+    --center-w: clamp(80px, 12vw, 120px);
     --btn-h: 56px;
     --radius: 18px;
   }
@@ -229,6 +229,13 @@ const resetBtn=$("#resetBtn"), undoBtn=$("#undoBtn"), exportBtn=$("#exportBtn"),
 // setup
 const setupWrap=$("#setupWrap"), searchInput=$("#searchInput"), genFilters=$("#genFilters"), memberChecklist=$("#memberChecklist"), startBtn=$("#startBtn"), selAllBtn=$("#selectAll"), clrAllBtn=$("#clearAll");
 
+/* 共有用のサイトURL（クエリ/ハッシュと index.html を除去） */
+const SITE_URL = (() => {
+  const u = new URL(location.href);
+  u.search = ""; u.hash = "";
+  return u.href.replace(/index\.html?$/i, "");
+})();
+
 /* ===== 進捗イージング ===== */
 const PROGRESS_EASE_GAMMA = 2.2;
 function easedPercent(done, total, finished){
@@ -303,7 +310,6 @@ async function loadImageMapJson(){
   }catch(e){ return {}; }
 }
 const cache = new Map();
-// 外部プレースホルダ（見やすい・キャッシュ効く）
 const placeholderSrc = (name)=>
   `https://placehold.co/800x800/png?text=${encodeURIComponent(name)}`;
 
@@ -323,7 +329,7 @@ function showImage(stageEl, name){
   const primary = IMAGE_MAP[name] || placeholderSrc(name);
   const candidates = [primary];
   if(!primary.startsWith("data:") && !primary.includes("placehold.co")){
-    candidates.push(placeholderSrc(name)); // フォールバックを必ず用意
+    candidates.push(placeholderSrc(name)); // フォールバック
   }
 
   function swapTo(src){
@@ -469,7 +475,23 @@ function renderResult(){
 
 function buildResultLines(){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ for(const name of g){ lines.push(`${rank}. ${name}`); } rank+=g.length; } return lines; }
 function buildTopNLines(n){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ if(rank>n) break; for(const name of g){ lines.push(`${rank}. ${name}`); } rank+=g.length; } return lines; }
-function composeTweetTop7(){ const MAX=280, header="AKB48ソート結果", tags="#AKBソート", lines=buildTopNLines(7); let parts=[header]; for(const line of lines){ const next=parts.join("\n")+"\n"+line; if(next.length<=MAX){ parts.push(line);} else { const remain=lines.length-(parts.length-1); const tail=`…他${remain}行`; if((parts.join("\n")+"\n"+tail).length<=MAX) parts.push(tail); break; } } let text=parts.join("\n"); if((text+"\n"+tags).length<=MAX) text += "\n"+tags; return text; }
+function composeTweetTop7(){
+  const MAX=280, header="AKB48ソート結果", tags="#AKBソート", lines=buildTopNLines(7);
+  let parts=[header];
+  for(const line of lines){
+    const next=parts.join("\n")+"\n"+line;
+    if(next.length<=MAX){ parts.push(line);}
+    else {
+      const remain=lines.length-(parts.length-1);
+      const tail=`…他${remain}行`;
+      if((parts.join("\n")+"\n"+tail).length<=MAX) parts.push(tail);
+      break;
+    }
+  }
+  let text=parts.join("\n");
+  if((text+"\n"+tags).length<=MAX) text += "\n"+tags;
+  return text;
+}
 
 /* ===== 入力イベント ===== */
 function onChoose(which){ pick(state, which); render(); }
@@ -486,11 +508,13 @@ document.addEventListener("keydown",(e)=>{
   else if(e.key==="ArrowDown" || e.key===" "){ e.preventDefault(); onChoose("T"); }
 });
 
+/* リセット：保存クリアして新規開始 */
 resetBtn.addEventListener("click", ()=>{
   if(confirm("最初からやり直しますか？")){
     const pool = (SELECTED && SELECTED.length)? SELECTED.slice() : MEMBERS.slice();
+    try{ localStorage.removeItem(STORAGE_KEY); }catch{}
     state=createNewState(pool);
-    history.length = 0; // Undo履歴クリア
+    history.length = 0;
     undoBtn.disabled = true;
     render();
   }
@@ -503,10 +527,15 @@ exportBtn.addEventListener("click", ()=>{
   const url=URL.createObjectURL(blob); const a=document.createElement("a");
   a.href=url; a.download="akb_ranking.txt"; a.click(); URL.revokeObjectURL(url);
 });
+
+/* ツイート：サイトURLも添付 */
 tweetBtn.addEventListener("click", ()=>{
   if(!state.finished) return;
-  const text=composeTweetTop7(); const url="https://twitter.com/intent/tweet?text="+encodeURIComponent(text);
-  window.open(url, "_blank", "noopener");
+  const text = composeTweetTop7();
+  const share = new URL("https://twitter.com/intent/tweet");
+  share.searchParams.set("text", text);
+  share.searchParams.set("url", SITE_URL); // ← サイトURLを添付
+  window.open(share.toString(), "_blank", "noopener");
 });
 
 /* メンバー選択UI */
@@ -519,13 +548,27 @@ editBtn?.addEventListener('click', ()=>{
 searchInput?.addEventListener('input', ()=>{ renderChecklist(); });
 selAllBtn?.addEventListener('click', ()=>{ visibleNames().forEach(n=>selectedSet.add(n)); saveSelected(selectedSet); renderChecklist(); });
 clrAllBtn?.addEventListener('click', ()=>{ visibleNames().forEach(n=>selectedSet.delete(n)); saveSelected(selectedSet); renderChecklist(); });
+
+/* ✅ 開始：UIから直接取得して反映（取りこぼし防止） */
 startBtn?.addEventListener('click', ()=>{
-  const arr = Array.from(selectedSet);
-  if(arr.length<2){ alert('2人以上選んでください'); return; }
-  SELECTED = arr;
-  history.length=0; undoBtn.disabled=true;
-  state = createNewState(SELECTED.slice());
+  const arr = Array.from(
+    document.querySelectorAll('#memberChecklist input[type="checkbox"]:checked')
+  ).map(el => el.value);
+
+  if(arr.length < 2){
+    alert('2人以上選んでください');
+    return;
+  }
+  selectedSet = new Set(arr);
   saveSelected(selectedSet);
+
+  SELECTED = arr.slice();
+
+  try{ localStorage.removeItem(STORAGE_KEY); }catch{}
+  history.length = 0;
+  undoBtn.disabled = true;
+
+  state = createNewState(SELECTED.slice());
   toggleSetup(false);
   render();
 });
@@ -533,7 +576,7 @@ startBtn?.addEventListener('click', ()=>{
 /* ===== 初期化 ===== */
 let state=null;
 (async function init(){
-  IMAGE_MAP = await loadImageMapJson(); // なければ {} → 自動でプレースホルダ
+  IMAGE_MAP = await loadImageMapJson(); // image-map.json が無くてもOK
   const savedSel = loadSelected();
   SELECTED = Array.from(savedSel);
   const savedState = loadState();
@@ -546,7 +589,7 @@ let state=null;
     renderGenFilters();
     renderChecklist();
     toggleSetup(true);
-    state = createNewState(SELECTED.slice()); // 準備だけしておく
+    state = createNewState(SELECTED.slice()); // 準備だけ
   }
   render();
 })();
