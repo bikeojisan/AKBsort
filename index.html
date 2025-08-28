@@ -475,21 +475,32 @@ function renderResult(){
 
 function buildResultLines(){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ for(const name of g){ lines.push(`${rank}. ${name}`); } rank+=g.length; } return lines; }
 function buildTopNLines(n){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ if(rank>n) break; for(const name of g){ lines.push(`${rank}. ${name}`); } rank+=g.length; } return lines; }
-function composeTweetTop7(){
-  const MAX=280, header="AKB48ソート結果", tags="#AKBソート", lines=buildTopNLines(7);
-  let parts=[header];
-  for(const line of lines){
-    const next=parts.join("\n")+"\n"+line;
-    if(next.length<=MAX){ parts.push(line);}
-    else {
-      const remain=lines.length-(parts.length-1);
-      const tail=`…他${remain}行`;
-      if((parts.join("\n")+"\n"+tail).length<=MAX) parts.push(tail);
+function composeTweetTop7(reserve=0){
+  // reserve で URL 分（t.co 23文字 + 改行1 = 24）を確保
+  const MAX = 280 - reserve;
+  const header = "AKB48ソート結果";
+  const tags = "#AKBソート";
+  const lines = buildTopNLines(7);
+
+  let parts = [header];
+  for (const line of lines) {
+    const current = parts.join("\n");
+    const nextLen = (current ? current.length + 1 : 0) + line.length;
+    if (nextLen <= MAX) {
+      parts.push(line);
+    } else {
+      const remain = lines.length - (parts.length - 1);
+      const tail = `…他${remain}行`;
+      const tailLen = (current ? current.length + 1 : 0) + tail.length;
+      if (tailLen <= MAX) parts.push(tail);
       break;
     }
   }
-  let text=parts.join("\n");
-  if((text+"\n"+tags).length<=MAX) text += "\n"+tags;
+
+  let text = parts.join("\n");
+  if (text.length + 1 + tags.length <= MAX) {
+    text += "\n" + tags;
+  }
   return text;
 }
 
@@ -531,12 +542,20 @@ exportBtn.addEventListener("click", ()=>{
 /* ツイート：サイトURLも添付 */
 tweetBtn.addEventListener("click", ()=>{
   if(!state.finished) return;
-  const text = composeTweetTop7();
+
+  // t.coはURLを約23文字に短縮。改行ぶん(+1)も見込んで24文字を予約
+  const TCO_URL_LEN = 23;
+  const RESERVE = TCO_URL_LEN + 1;
+
+  // URLぶんを見越して短めに本文を生成し、最後に改行してURLを追記
+  const text = composeTweetTop7(RESERVE) + "\n" + SITE_URL;
+
   const share = new URL("https://twitter.com/intent/tweet");
-  share.searchParams.set("text", text);
-  share.searchParams.set("url", SITE_URL); // ← サイトURLを添付
+  share.searchParams.set("text", text); // 本文にURLを含める
+  // share.searchParams.set("url", ...) は使わない（自動末尾付与を避ける）
   window.open(share.toString(), "_blank", "noopener");
 });
+
 
 /* メンバー選択UI */
 editBtn?.addEventListener('click', ()=>{
