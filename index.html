@@ -5,72 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AKB48ソート</title>
 <style>
-  /*****************
-   * レイアウト変数
-   *****************/
+  /* BUILD: fixed v5 */
   :root{
-    --gap: 14px;                         /* カラム間隔 */
-    --card-max: clamp(150px, 42vw, 420px);/* 左右カードの最大幅（可変） */
-    --center-w: clamp(80px, 12vw, 120px); /* 真ん中列の幅（ボタン列） */
+    --gap: 14px;
+    --card-max: clamp(150px, 42vw, 420px); /* 左右カードの最大幅（可変） */
+    --center-w: clamp(80px, 12vw, 120px);  /* 真ん中列の幅（ボタン列） */
     --btn-h: 56px;
     --radius: 18px;
   }
 
-  /*****************
-   * ベース
-   *****************/
   *{box-sizing:border-box}
-  body{
-    font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Arial, sans-serif;
-    margin:0; background:#0b0d0f; color:#eef1f4;
-  }
-  header{
-    display:flex; align-items:center; gap:12px; padding:14px 16px;
-    border-bottom:1px solid #20252b; position:sticky; top:0;
-    backdrop-filter: blur(6px); background:rgba(11,13,15,.7);
-  }
+  body{font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Arial, sans-serif; margin:0; background:#0b0d0f; color:#eef1f4;}
+  header{display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #20252b; position:sticky; top:0; backdrop-filter: blur(6px); background:rgba(11,13,15,.7);}
   header h1{font-size:18px; margin:0; font-weight:700;}
   #progressWrap{display:flex; align-items:center; gap:12px; margin-left:auto; min-width:260px;}
   #bar{flex:1; height:10px; background:#1a1f25; border-radius:999px; overflow:hidden;}
   #bar>i{display:block; height:100%; width:0%; background:linear-gradient(90deg,#66d1ff,#7cffc4); transition:width .2s ease;}
   #pct{font-variant-numeric: tabular-nums; min-width:52px; text-align:right;}
   #count{font-variant-numeric: tabular-nums; font-size:12px; opacity:.8; white-space:nowrap;}
-
   main{max-width:1200px; margin:18px auto; padding:0 16px;}
 
-  /*****************
-   * 3カラムの舞台
-   *****************/
-  .arena{
-    display:grid;
-    grid-template-columns: minmax(0,1fr) var(--center-w) minmax(0,1fr); /* 常に横3列 */
-    align-items:center;
-    gap: var(--gap);
-  }
-  .side{display:flex; flex-direction:column; align-items:center; gap:12px; width:100%; min-width:0;}
+  /* === 常に横3列（中央は固定幅、左右は自動） === */
+  .arena{ display:grid; grid-template-columns: minmax(0,1fr) var(--center-w) minmax(0,1fr); align-items:center; gap: var(--gap); }
+  .side{ display:flex; flex-direction:column; align-items:center; gap:12px; width:100%; min-width:0; }
+  .tieCol{ width: var(--center-w); display:flex; align-items:center; justify-content:center; }
 
-  .picCard{
-    position:relative;
-    width:min(100%, var(--card-max));  /* 列幅にフィット＋上限 */
-    max-width:var(--card-max);
-    aspect-ratio:1/1; height:auto;    /* 正方形維持（高さは自動） */
-    border-radius:var(--radius); background:#0f1317; border:1px solid #1f262d;
-    overflow:hidden; box-shadow:0 6px 30px rgba(0,0,0,.35);
-  }
-  .picCard .stage{position:absolute; inset:0;}
-  .stage img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .24s linear; backface-visibility:hidden; transform: translateZ(0);} 
-  .stage img.active{opacity:1;}
+  /* カードは列幅にフィット＋正方形、画像はカバー */
+  .picCard{ position:relative; width:min(100%, var(--card-max)); max-width:var(--card-max); aspect-ratio:1/1; height:auto; border-radius:var(--radius); background:#0f1317; border:1px solid #1f262d; overflow:hidden; box-shadow:0 6px 30px rgba(0,0,0,.35); }
+  .picCard .stage{ position:absolute; inset:0; }
+  .stage img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .24s linear; backface-visibility:hidden; transform: translateZ(0);}
+  .stage img.active{ opacity:1; }
 
-  .choice-btn{
-    width:min(100%, var(--card-max));
-    max-width:var(--card-max);
-    height:var(--btn-h); border-radius:12px; border:1px solid #28323a; background:#161b20; color:#e9eef3; font-size:16px;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 14px; cursor:pointer; transition:transform .03s ease, background .2s;
-  }
-  .choice-btn:hover{background:#1b2127;}
-  .choice-btn:active{transform:translateY(1px);} 
+  .choice-btn{ width:min(100%, var(--card-max)); max-width:var(--card-max); height:var(--btn-h); border-radius:12px; border:1px solid #28323a; background:#161b20; color:#e9eef3; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:0 14px; cursor:pointer; transition:transform .03s ease, background .2s; }
+  .choice-btn:hover{ background:#1b2127; }
+  .choice-btn:active{ transform:translateY(1px); }
 
-  .tieCol{width:var(--center-w); display:flex; align-items:center; justify-content:center;}
   .tie-btn{ width:100%; height:var(--btn-h); border-radius:999px; border:1px solid #28323a; background:#161b20; color:#e9eef3; cursor:pointer; transition:background .2s; }
   .tie-btn:hover{ background:#1b2127; }
   .tie-btn:focus, .tie-btn:focus-visible{ outline:none; box-shadow:0 0 0 2px rgba(124,255,196,.35); }
@@ -87,16 +56,16 @@
   .same{font-size:12px; opacity:.7;}
   .footnote{opacity:.65; font-size:12px; margin-top:10px;}
 
-  /* 端末幅に応じてちょい縮小 */
+  /* 端末幅に応じてちょい縮小（列は常に3つのまま） */
   @media (max-width: 900px){ :root{ --btn-h: 48px; --gap: 10px; --card-max: clamp(130px, 40vw, 320px);} }
   @media (max-width: 600px){ :root{ --gap: 8px;  --card-max: clamp(120px, 38vw, 260px);} }
 
-/* ===== aspect-ratio未対応ブラウザのフォールバック ===== */
-@supports not (aspect-ratio: 1/1){
-  .picCard{ position:relative; height:auto; }
-  .picCard::before{ content:""; display:block; width:100%; padding-top:100%; }
-  .picCard .stage{ position:absolute; inset:0; }
-} }
+  /* aspect-ratio未対応ブラウザのフォールバック */
+  @supports not (aspect-ratio: 1/1){
+    .picCard{ position:relative; height:auto; }
+    .picCard::before{ content:""; display:block; width:100%; padding-top:100%; }
+    .picCard .stage{ position:absolute; inset:0; }
+  }
 </style>
 </head>
 <body>
@@ -113,7 +82,6 @@
   <div class="panel toolbar" style="margin-bottom:14px;">
     <button id="resetBtn" title="最初からやり直す">🔄 はじめから</button>
     <button id="undoBtn" title="1手戻す" disabled>↩ 戻す</button>
-    <!-- 結果が出るまで隠す -->
     <button id="exportBtn" class="hidden" title="結果をテキストとして保存">📄 結果をテキスト化</button>
     <button id="tweetBtn"  class="hidden" title="上位7位をXで共有">𝕏 結果を共有</button>
   </div>
@@ -135,14 +103,12 @@
   <div id="resultWrap" class="hidden" aria-live="polite">
     <h2 style="margin:10px 0 6px;">最終結果</h2>
     <div id="resultList" class="result"></div>
-    <div class="footnote">※「引き分け」を選んだメンバーは同率としてまとめて表示します。</div>
+    <div class="footnote">※同率の場合でも、同じ順位を繰り返して個別に表示します。</div>
   </div>
 </main>
 
 <script>
-/***********************
- * 対象メンバー（43名）
- ***********************/
+/* ===== メンバー ===== */
 const MEMBERS = [
 "岩立沙穂","福岡聖菜","向井地美音","小栗有以","倉野尾成美","坂川陽香","下尾みう","髙橋彩音",
 "徳永羚海","永野芹佳","橋本陽菜","千葉恵里","鈴木くるみ","田口愛佳","長友彩海","武藤小麟",
@@ -152,33 +118,27 @@ const MEMBERS = [
 "大賀彩姫","近藤沙樹","丸山ひなた"
 ];
 
-/***********************
- * 要素参照
- ***********************/
+/* ===== 参照 ===== */
 const stageL=document.querySelector("#stageL"), stageR=document.querySelector("#stageR");
 const btnL=document.querySelector("#btnL"), btnR=document.querySelector("#btnR"), btnTie=document.querySelector("#btnTie");
 const bar=document.querySelector("#bar>i"), pct=document.querySelector("#pct"), countEl=document.querySelector("#count");
 const arena=document.querySelector("#arena"), resultWrap=document.querySelector("#resultWrap"), resultList=document.querySelector("#resultList");
 const resetBtn=document.querySelector("#resetBtn"), undoBtn=document.querySelector("#undoBtn"), exportBtn=document.querySelector("#exportBtn"), tweetBtn=document.querySelector("#tweetBtn");
 
-/***********************
- * 進捗イージング（初期0%固定）
- ***********************/
+/* ===== 進捗イージング ===== */
 const PROGRESS_EASE_GAMMA = 2.2;
 const PROGRESS_START_KICK = 0;
 function easedPercent(done, total, finished){
   if (finished) return 100;
   if (!total)   return 100;
-  if (done === 0) return 0; // 初期は必ず0%
+  if (done === 0) return 0;
   const x = Math.min(done / total, 0.999);
   const y0 = 1 - Math.pow(1 - x, PROGRESS_EASE_GAMMA);
   const y  = PROGRESS_START_KICK + (1 - PROGRESS_START_KICK) * y0;
   return Math.min(99, Math.max(0, Math.round(y * 100)));
 }
 
-/***********************
- * 画像マップ（image-map.json）
- ***********************/
+/* ===== 画像マップ ===== */
 let IMAGE_MAP = {};
 async function loadImageMapJson(){
   try{
@@ -188,15 +148,13 @@ async function loadImageMapJson(){
   }catch(e){ return {}; }
 }
 const cache = new Map();
-// 外部に依存しないプレースホルダ（日本語テキスト対応のSVG）
+// 内蔵SVGプレースホルダ（外部依存なし）
 const placeholderSrc = (name)=>{
-  const text = encodeURIComponent(name);
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'>
-`+
-              `<defs><style><![CDATA[text{font-family: system-ui, -apple-system, Noto Sans JP, Arial; font-size:48px; fill:#cfd5dc;}]]></style></defs>`+
-              `<rect width='100%' height='100%' fill='#11161b'/>`+
-              `<text x='50%' y='50%' text-anchor='middle' dominant-baseline='middle'>${name}</text>`+
-              `</svg>`;
+<defs><style><![CDATA[text{font-family: system-ui, -apple-system, Noto Sans JP, Arial; font-size:48px; fill:#cfd5dc;}]]></style></defs>
+<rect width='100%' height='100%' fill='#11161b'/>
+<text x='50%' y='50%' text-anchor='middle' dominant-baseline='middle'>${name}</text>
+</svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
@@ -214,7 +172,7 @@ function showImage(stageEl, name){
   const idle=active===imgA?imgB:imgA;
   const primary = IMAGE_MAP[name] || placeholderSrc(name);
   const candidates = [primary];
-  if(!primary.includes("placehold.co")) candidates.push(placeholderSrc(name));
+  if(!primary.startsWith("data:")) candidates.push(placeholderSrc(name));
   function swapTo(src){ idle.src=src; idle.alt=name; active.alt=name; requestAnimationFrame(()=>{ active.classList.remove("active"); idle.classList.add("active"); }); }
   function tryLoad(idx){
     const src=candidates[idx];
@@ -227,9 +185,7 @@ function showImage(stageEl, name){
   tryLoad(0);
 }
 
-/***********************
- * 比較回数の理論上限（初期）と動的分母
- ***********************/
+/* ===== 比較回数（初期上限＋動的分母） ===== */
 function computeOptimalTotal(n){
   if(n<=1) return 0;
   const heap = Array(n).fill(1);
@@ -263,26 +219,16 @@ function recomputeTotalUpperBound(s){
   return s.done + huffmanCostFromSizes(otherSizes);
 }
 
-/***********************
- * State 型 & 永続化
- ***********************/
-/** @typedef {{left:string[], right:string[], i:number, j:number, merged:string[]}} ActiveRun */
-/** @typedef {{runs:string[][], active:ActiveRun|null, done:number, total:number, ties:Map<string,Set<string>>, finished:boolean, final:string[]}} SortState */
-
-const STORAGE_KEY = "akb-ranker-v4"; // 新キー
-
-function createNewState(names){
-  return { runs:names.map(n=>[n]), active:null, done:0, total:computeOptimalTotal(names.length), ties:new Map(), finished:false, final:[] };
-}
+/* ===== State & 永続化 ===== */
+const STORAGE_KEY = "akb-ranker-v5";
+function createNewState(names){ return { runs:names.map(n=>[n]), active:null, done:0, total:computeOptimalTotal(names.length), ties:new Map(), finished:false, final:[] }; }
 function serializeState(s){ const tiesObj={}; s.ties.forEach((set,k)=>{tiesObj[k]=Array.from(set)}); return JSON.stringify({runs:s.runs,active:s.active,done:s.done,total:s.total,ties:tiesObj,finished:s.finished,final:s.final}); }
 function deserializeState(json){ try{ const o=JSON.parse(json); const ties=new Map(Object.entries(o.ties||{}).map(([k,arr])=>[k,new Set(arr)])); return {runs:o.runs,active:o.active,done:o.done,total:o.total,ties,finished:o.finished,final:o.final}; }catch{ return null; } }
 function saveState(s){ localStorage.setItem(STORAGE_KEY, serializeState(s)); }
 function loadState(){ try{ const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return null; return deserializeState(raw);}catch{ return null; } }
 const saveStateDebounced = (()=>{ let t=null; return (s)=>{ clearTimeout(t); t=setTimeout(()=>saveState(s), 16); }; })();
 
-/***********************
- * マージ進行 & 操作
- ***********************/
+/* ===== マージ進行 ===== */
 function prepareNextPair(s){
   if(s.active && s.active.i < s.active.left.length && s.active.j < s.active.right.length) return;
   if(s.active){
@@ -292,16 +238,21 @@ function prepareNextPair(s){
     s.runs.push(a.merged); s.active=null;
   }
   if(s.runs.length===1){ s.finished=true; s.final=s.runs[0]; return; }
-  if(s.runs.length>=2){ s.runs.sort((A,B)=>A.length-B.length); const left=s.runs.shift(), right=s.runs.shift(); s.active={left,right,i:0,j:0,merged:[]}; return prepareNextPair(s); }
+  if(s.runs.length>=2){
+    s.runs.sort((A,B)=>A.length-B.length);
+    const left=s.runs.shift(), right=s.runs.shift();
+    s.active = { left, right, i:0, j:0, merged:[] };
+    return prepareNextPair(s);
+  }
 }
 
-// Undo（スナップショット方式）
+/* ===== Undo & 操作 ===== */
 const history=[]; function pushHistory(s){ history.push(serializeState(s)); undoBtn.disabled = history.length===0; }
 function undo(){ if(!history.length) return; const snap=history.pop(); const prev=deserializeState(snap); if(prev){ state=prev; render(true); } undoBtn.disabled = history.length===0; }
 
 function pick(s, which){
   if(s.finished) return; prepareNextPair(s); if(s.finished) return;
-  pushHistory(s); // for undo
+  pushHistory(s);
   const a=s.active; const L=a.left[a.i], R=a.right[a.j];
   if(which==="L"){ a.merged.push(L); a.i++; }
   else if(which==="R"){ a.merged.push(R); a.j++; }
@@ -309,23 +260,18 @@ function pick(s, which){
   s.done++; prepareNextPair(s);
 }
 
-/***********************
- * 描画
- ***********************/
+/* ===== 描画 ===== */
 function updateProgress(s){
   const totalDyn = recomputeTotalUpperBound(s);
-  if (s.finished) {
-    bar.style.width = "100%"; pct.textContent = "100%"; countEl.textContent = `比較: ${s.done} / ${s.done}`;
-  } else {
-    const p = easedPercent(s.done, totalDyn, s.finished);
-    bar.style.width = p + "%"; pct.textContent = p + "%"; countEl.textContent = `比較: ${s.done} / ${totalDyn}`;
-  }
+  if (s.finished) { bar.style.width="100%"; pct.textContent="100%"; countEl.textContent=`比較: ${s.done} / ${s.done}`; }
+  else { const p=easedPercent(s.done,totalDyn,s.finished); bar.style.width=p+"%"; pct.textContent=p+"%"; countEl.textContent=`比較: ${s.done} / ${totalDyn}`; }
 }
 
 function render(skipSave){
   updateProgress(state);
   const finished = !!state.finished;
-  exportBtn.classList.toggle("hidden", !finished); tweetBtn.classList.toggle("hidden", !finished);
+  exportBtn.classList.toggle("hidden", !finished);
+  tweetBtn.classList.toggle("hidden", !finished);
   undoBtn.disabled = history.length===0;
   if(finished){ arena.classList.add("hidden"); resultWrap.classList.remove("hidden"); renderResult(); if(!skipSave) saveStateDebounced(state); return; }
   prepareNextPair(state); if(state.finished){ render(); return; }
@@ -336,9 +282,14 @@ function render(skipSave){
 
 function buildTieGroupsInOrder(){
   const adj=state.ties, seen=new Set(), groups=[];
-  for(const name of state.final){ if(seen.has(name)) continue; const group=[], q=[name]; seen.add(name); while(q.length){ const u=q.shift(); group.push(u); if(adj.has(u)){ for(const v of adj.get(u)){ if(!seen.has(v)){ seen.add(v); q.push(v); } } } } groups.push(group); }
+  for(const name of state.final){ if(seen.has(name)) continue; const group=[], q=[name]; seen.add(name);
+    while(q.length){ const u=q.shift(); group.push(u); if(adj.has(u)){ for(const v of adj.get(u)){ if(!seen.has(v)){ seen.add(v); q.push(v); } } } }
+    groups.push(group);
+  }
   return groups;
 }
+
+/* タイは同順位で個別行 */
 function renderResult(){
   resultList.innerHTML="";
   const groups = buildTieGroupsInOrder();
@@ -354,32 +305,12 @@ function renderResult(){
     rank += group.length;
   }
 }
-}
 
-function buildResultLines(){
-  const groups=buildTieGroupsInOrder();
-  const lines=[]; let rank=1;
-  for(const g of groups){
-    for(const name of g){ lines.push(`${rank}. ${name}`); }
-    rank+=g.length;
-  }
-  return lines;
-}. ${g.join(" / ")}`); rank+=g.length; } return lines; }
-function buildTopNLines(n){
-  const groups=buildTieGroupsInOrder();
-  const lines=[]; let rank=1;
-  for(const g of groups){
-    if(rank>n) break;
-    for(const name of g){ lines.push(`${rank}. ${name}`); }
-    rank+=g.length;
-  }
-  return lines;
-}. ${g.join(" / ")}`); rank+=g.length; } return lines; }
+function buildResultLines(){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ for(const name of g){ lines.push(`${rank}. ${name}`); } rank+=g.length; } return lines; }
+function buildTopNLines(n){ const groups=buildTieGroupsInOrder(); const lines=[]; let rank=1; for(const g of groups){ if(rank>n) break; for(const name of g){ lines.push(`${rank}. ${name}`); } rank+=g.length; } return lines; }
 function composeTweetTop7(){ const MAX=280, header="AKB48推しソート上位7位", tags="#AKB48 #推しソート", lines=buildTopNLines(7); let parts=[header]; for(const line of lines){ const next=parts.join("\n")+"\n"+line; if(next.length<=MAX){ parts.push(line);} else { const remain=lines.length-(parts.length-1); const tail=`…他${remain}行`; if((parts.join("\n")+"\n"+tail).length<=MAX) parts.push(tail); break; } } let text=parts.join("\n"); if((text+"\n"+tags).length<=MAX) text += "\n"+tags; return text; }
 
-/***********************
- * イベント
- ***********************/
+/* ===== 入力イベント ===== */
 function onChoose(which){ pick(state, which); render(); }
 const USE_POINTER = window.PointerEvent !== undefined;
 const bind = (el, type, which) => el.addEventListener(type, (e)=>{ e.preventDefault(); onChoose(which); }, { passive:false });
@@ -399,11 +330,10 @@ undoBtn.addEventListener("click", ()=>{ undo(); });
 exportBtn.addEventListener("click", ()=>{ if(!state.finished) return; const blob=new Blob([buildResultLines().join("\n")],{type:"text/plain;charset=utf-8"}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download="akb_ranking.txt"; a.click(); URL.revokeObjectURL(url); });
 tweetBtn.addEventListener("click", ()=>{ if(!state.finished) return; const text=composeTweetTop7(); const url="https://twitter.com/intent/tweet?text="+encodeURIComponent(text); window.open(url, "_blank", "noopener"); });
 
-/***********************
- * 初期化
- ***********************/
+/* ===== 初期化 ===== */
 let state=null;
 (async function init(){ IMAGE_MAP = await loadImageMapJson(); state = loadState() ?? createNewState(MEMBERS.slice()); render(); })();
+
 </script>
 </body>
 </html>
