@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AKB48ソート</title>
 <style>
-  /* BUILD: clean-rebuild v3 (with fixes) */
   :root{
     --gap: 14px;
     --card-max: clamp(150px, 42vw, 420px);
@@ -65,15 +64,6 @@
   .picCard::before{ content:""; display:block; width:100%; padding-top:100%; }
   .picCard .stage{ position:absolute; inset:0; }
   }
-
-  /* PVパネルがはみ出す時は折り返す */
-  header{ flex-wrap: wrap; }
-
-  /* スマホ幅ではPVを1行下にフル幅で表示 */
-  @media (max-width: 600px){
-  #pvPanel{ width:100%; margin-left:0; margin-top:8px; }
-  }
-
 
   /* メンバー選択UI */
   .setup-toolbar{ display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:10px; }
@@ -231,14 +221,16 @@ const SELECTED_KEY = 'akb-selected-v1';
 let SELECTED = [];
 
 /* ===== 参照 ===== */
-const $ = (s)=>document.querySelector(s);
-const stageL=$("#stageL"), stageR=$("#stageR");
-const btnL=$("#btnL"), btnR=$("#btnR"), btnTie=$("#btnTie");
-const bar=$("#bar>i"), pct=$("#pct"), countEl=$("#count");
-const arena=$("#arena"), resultWrap=$("#resultWrap"), resultList=$("#resultList");
-const resetBtn=$("#resetBtn"), undoBtn=$("#undoBtn"), exportBtn=$("#exportBtn"), tweetBtn=$("#tweetBtn"), editBtn=$("#editBtn");
-// setup
-const setupWrap=$("#setupWrap"), searchInput=$("#searchInput"), genFilters=$("#genFilters"), memberChecklist=$("#memberChecklist"), startBtn=$("#startBtn"), selAllBtn=$("#selectAll"), clrAllBtn=$("#clearAll");
+const byId = (id) => document.getElementById(id);
+const stageL = byId("stageL"), stageR = byId("stageR");
+const btnL = byId("btnL"), btnR = byId("btnR"), btnTie = byId("btnTie");
+const bar = document.querySelector("#bar > i"), pct = byId("pct"), countEl = byId("count");
+const arena = byId("arena"), resultWrap = byId("resultWrap"), resultList = byId("resultList");
+const resetBtn = byId("resetBtn"), undoBtn = byId("undoBtn"), exportBtn = byId("exportBtn");
+const tweetBtn = byId("tweetBtn"), editBtn = byId("editBtn");
+const setupWrap = byId("setupWrap"), searchInput = byId("searchInput"), genFilters = byId("genFilters");
+const memberChecklist = byId("memberChecklist"), startBtn = byId("startBtn");
+const selAllBtn = byId("selectAll"), clrAllBtn = byId("clearAll");
 
 /* 共有用のサイトURL（クエリ/ハッシュと index.html を除去） */
 const SITE_URL = (() => {
@@ -262,7 +254,7 @@ function easedPercent(done, total, finished){
  * メンバー選択ロジック
  ***********************/
 const activeGens = new Set();
-function uniqueGens(){ const s=new Set(); for(const n of MEMBERS){ const g=GEN_BY_NAME[n]; if(g) s.add(g); } return Array.from(s).sort(); }
+function uniqueGens(){ return [...new Set(MEMBERS.map(name => GEN_BY_NAME[name]).filter(Boolean))]; }
 function loadSelected(){ try{ const arr=JSON.parse(localStorage.getItem(SELECTED_KEY)||'[]'); if(Array.isArray(arr) && arr.length){ return new Set(arr.filter(n=>MEMBERS.includes(n))); } }catch{} return new Set(MEMBERS); }
 function saveSelected(sel){ localStorage.setItem(SELECTED_KEY, JSON.stringify(Array.from(sel))); }
 let selectedSet = null;
@@ -307,8 +299,8 @@ function renderChecklist(){
 }
 function toggleSetup(show){
   setupWrap.classList.toggle('hidden', !show);
-  arena.classList.toggle('hidden', show);
-  resultWrap.classList.add('hidden');
+  arena.classList.toggle('hidden', show || !!state?.finished);
+  resultWrap.classList.toggle('hidden', show || !state?.finished);
 }
 
 /* ===== 画像マップ ===== */
@@ -359,18 +351,9 @@ function showImage(stageEl, name){
 }
 
 /* ===== 比較回数（初期上限＋動的分母） ===== */
-function computeOptimalTotal(n){
-  if(n<=1) return 0;
-  const heap = Array(n).fill(1);
-  const up=(i)=>{while(i>0){const p=(i-1)>>1;if(heap[p]<=heap[i])break;[heap[p],heap[i]]=[heap[i],heap[p]];i=p;}};
-  const down=(i)=>{for(;;){let l=i*2+1,r=l+1,s=i;if(l<heap.length&&heap[l]<heap[s])s=l;if(r<heap.length&&heap[r]<heap[s])s=r;if(s===i)break;[heap[i],heap[s]]=[heap[s],heap[i]];i=s;}};
-  for(let i=(heap.length>>1)-1;i>=0;i--) down(i);
-  const pop=()=>{const x=heap[0];const y=heap.pop();if(heap.length){heap[0]=y;down(0);}return x;};
-  const push=(v)=>{heap.push(v);up(heap.length-1);};
-  let total=0; while(heap.length>1){ const a=pop(), b=pop(); total+=(a+b-1); push(a+b);} return total;
-}
-function huffmanCostFromSizes(sizes){
-  const heap = sizes.filter(x=>x>0).slice(); if(heap.length<=1) return 0;
+function calculateMergeCost(sizes){
+  const heap = sizes.filter(size => size > 0).slice();
+  if(heap.length <= 1) return 0;
   const up=(i)=>{while(i>0){const p=(i-1)>>1;if(heap[p]<=heap[i])break;[heap[p],heap[i]]=[heap[i],heap[p]];i=p;}};
   const down=(i)=>{for(;;){let l=i*2+1,r=l+1,s=i;if(l<heap.length&&heap[l]<heap[s])s=l;if(r<heap.length&&heap[r]<heap[s])s=r;if(s===i)break;[heap[i],heap[s]]=[heap[s],heap[i]];i=s;}};
   for(let i=(heap.length>>1)-1;i>=0;i--) down(i);
@@ -378,6 +361,7 @@ function huffmanCostFromSizes(sizes){
   const push=(v)=>{heap.push(v);up(heap.length-1);};
   let cost=0; while(heap.length>1){ const a=pop(), b=pop(); cost+=(a+b-1); push(a+b);} return cost;
 }
+function computeOptimalTotal(n){ return calculateMergeCost(Array(n).fill(1)); }
 function recomputeTotalUpperBound(s){
   const otherSizes = s.runs.map(r=>r.length);
   if(s.active){
@@ -387,9 +371,9 @@ function recomputeTotalUpperBound(s){
     const pairCost = (leftRem>0 && rightRem>0) ? (leftRem + rightRem - 1) : 0;
     const newRunSize = mergedSoFar + leftRem + rightRem;
     const sizesAfter = newRunSize>0 ? [newRunSize, ...otherSizes] : otherSizes.slice();
-    return s.done + pairCost + huffmanCostFromSizes(sizesAfter);
+    return s.done + pairCost + calculateMergeCost(sizesAfter);
   }
-  return s.done + huffmanCostFromSizes(otherSizes);
+  return s.done + calculateMergeCost(otherSizes);
 }
 
 /* ===== State & 永続化 ===== */
@@ -420,7 +404,9 @@ function prepareNextPair(s){
 }
 
 /* ===== Undo & 操作 ===== */
-const history=[]; function pushHistory(s){ history.push(serializeState(s)); undoBtn.disabled = history.length===0; }
+const history=[];
+function syncUndoButton(){ undoBtn.disabled = history.length === 0; }
+function pushHistory(s){ history.push(serializeState(s)); syncUndoButton(); }
 function undo(){ if(!history.length) return; const snap=history.pop(); const prev=deserializeState(snap); if(prev){ state=prev; render(true); } undoBtn.disabled = history.length===0; }
 
 function pick(s, which){
@@ -445,7 +431,7 @@ function render(skipSave){
   const finished = !!state.finished;
   exportBtn.classList.toggle("hidden", !finished);
   tweetBtn.classList.toggle("hidden", !finished);
-  undoBtn.disabled = history.length===0;
+  syncUndoButton();
   if(finished){ arena.classList.add("hidden"); resultWrap.classList.remove("hidden"); renderResult(); if(!skipSave) saveStateDebounced(state); return; }
   prepareNextPair(state); if(state.finished){ render(); return; }
   const a=state.active, L=a.left[a.i], R=a.right[a.j];
@@ -569,6 +555,11 @@ tweetBtn.addEventListener("click", ()=>{
 
 /* メンバー選択UI */
 editBtn?.addEventListener('click', ()=>{
+  const shouldOpen = setupWrap.classList.contains('hidden');
+  if(!shouldOpen){
+    toggleSetup(false);
+    return;
+  }
   selectedSet = loadSelected();
   renderGenFilters();
   renderChecklist();
@@ -578,11 +569,8 @@ searchInput?.addEventListener('input', ()=>{ renderChecklist(); });
 selAllBtn?.addEventListener('click', ()=>{ visibleNames().forEach(n=>selectedSet.add(n)); saveSelected(selectedSet); renderChecklist(); });
 clrAllBtn?.addEventListener('click', ()=>{ visibleNames().forEach(n=>selectedSet.delete(n)); saveSelected(selectedSet); renderChecklist(); });
 
-/* ✅ 開始：UIから直接取得して反映（取りこぼし防止） */
 startBtn?.addEventListener('click', ()=>{
-  const arr = Array.from(
-    document.querySelectorAll('#memberChecklist input[type="checkbox"]:checked')
-  ).map(el => el.value);
+  const arr = MEMBERS.filter(name => selectedSet.has(name));
 
   if(arr.length < 2){
     alert('2人以上選んでください');
@@ -620,41 +608,6 @@ let state=null;
   render();
 })();
 
-</script>
-
-<script>
-/* サイレントPVカウンター */
-(function(){
-  const NS = "akbsort-3e1f9c2c-2a5b-4f22-9dbf-0f8e8c7a7d9b";
-
-  const todayKey = "d-" + new Date().toISOString().slice(0,10).replace(/-/g,""); // d-YYYYMMDD
-  const hit = k => fetch(`https://api.countapi.xyz/hit/${encodeURIComponent(NS)}/${encodeURIComponent(k)}`).catch(()=>{});
-
-  // 総PVと当日PVを加算
-  hit("total");
-  hit(todayKey);
-
-  if (new URLSearchParams(location.search).get("admin") === "1") {
-    const box = document.createElement("div");
-    Object.assign(box.style, {
-      position:"fixed", right:"10px", bottom:"10px", zIndex:9999,
-      background:"#0f1317", border:"1px solid #1f262d", borderRadius:"12px",
-      padding:"8px 10px", fontSize:"12px", display:"flex", gap:"8px", alignItems:"center"
-    });
-    box.innerHTML = `👀 PV <b id="pvTotal">—</b> ｜ 今日 <b id="pvToday">—</b>`;
-    document.body.appendChild(box);
-
-    const get = k => fetch(`https://api.countapi.xyz/get/${encodeURIComponent(NS)}/${encodeURIComponent(k)}`)
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(j => (j && typeof j.value === "number") ? j.value : null)
-      .catch(()=>null);
-
-    Promise.all([get("total"), get(todayKey)]).then(([t,d])=>{
-      if (t!=null) document.getElementById("pvTotal").textContent = t.toLocaleString("ja-JP");
-      if (d!=null) document.getElementById("pvToday").textContent = d.toLocaleString("ja-JP");
-    });
-  }
-})();
 </script>
 
 </body>
