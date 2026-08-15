@@ -332,7 +332,7 @@ function showImage(stageEl, name){
   const primary = IMAGE_MAP[name] || placeholderSrc(name);
   const candidates = [primary];
   if(!primary.startsWith("data:") && !primary.includes("placehold.co")){
-    candidates.push(placeholderSrc(name)); // フォールバック
+    candidates.push(placeholderSrc(name));
   }
 
   function swapTo(src){
@@ -593,7 +593,6 @@ startBtn?.addEventListener('click', ()=>{
 /* ===== 初期化 ===== */
 let state=null;
 (async function init(){
-  IMAGE_MAP = await loadImageMapJson(); // image-map.json が無くてもOK
   const savedSel = loadSelected();
   SELECTED = Array.from(savedSel);
 
@@ -605,6 +604,15 @@ let state=null;
     state = createNewState(SELECTED.slice());
     toggleSetup(false);
   }
+
+  // 画像マップの取得中も、対戦メンバー名はすぐ表示する
+  prepareNextPair(state);
+  if(!state.finished && state.active){
+    btnL.textContent = state.active.left[state.active.i];
+    btnR.textContent = state.active.right[state.active.j];
+  }
+
+  IMAGE_MAP = await loadImageMapJson(); // image-map.json が無くてもOK
   render();
 })();
 
