@@ -600,4 +600,50 @@ editBtn?.addEventListener('click', ()=>{
 });
 searchInput?.addEventListener('input', ()=>{ renderChecklist(); });
 selAllBtn?.addEventListener('click', ()=>{ visibleNames().forEach(n=>selectedSet.add(n)); saveSelected(selectedSet); renderChecklist(); });
-clrAllBtn?.addEventListener('click', ()=>{ 
+clrAllBtn?.addEventListener('click', ()=>{ visibleNames().forEach(n=>selectedSet.delete(n)); saveSelected(selectedSet); renderChecklist(); });
+
+startBtn?.addEventListener('click', ()=>{
+  const arr = MEMBERS.filter(name => selectedSet.has(name));
+
+  if(arr.length < 2){
+    alert('2人以上選んでください');
+    return;
+  }
+  selectedSet = new Set(arr);
+  saveSelected(selectedSet);
+
+  SELECTED = arr.slice();
+
+  try{ localStorage.removeItem(STORAGE_KEY); }catch{}
+  history.length = 0;
+  undoBtn.disabled = true;
+
+  state = createNewState(SELECTED.slice());
+  toggleSetup(false);
+  render();
+  setTimeout(() => preloadSelectedImages(SELECTED), 0);
+});
+
+/* ===== 初期化 ===== */
+let state=null;
+(async function init(){
+  IMAGE_MAP = await loadImageMapJson(); // image-map.json が無くてもOK
+  const savedSel = loadSelected();
+  SELECTED = Array.from(savedSel);
+
+  const savedState = loadState();
+  if(savedState){
+    state = savedState;
+    toggleSetup(false); // ← 既存の続きがあればそのまま本編表示
+  }else{
+    state = createNewState(SELECTED.slice());
+    toggleSetup(false);
+  }
+  render();
+  setTimeout(() => preloadSelectedImages(SELECTED), 0);
+})();
+
+</script>
+
+</body>
+</html>
