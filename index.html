@@ -316,6 +316,43 @@ const cache = new Map();
 const placeholderSrc = (name)=>
   `https://placehold.co/800x800/png?text=${encodeURIComponent(name)}`;
 
+function imageCandidates(name){
+  const primary = IMAGE_MAP[name] || placeholderSrc(name);
+  return !primary.startsWith("data:") && !primary.includes("placehold.co")
+    ? [primary, placeholderSrc(name)]
+    : [primary];
+}
+
+function preloadSelectedImages(names, concurrency = 3){
+  if(navigator.connection?.saveData) return;
+
+  const uniqueNames = [...new Set(names)];
+  let nextIndex = 0;
+
+  const worker = async () => {
+    while(nextIndex < uniqueNames.length){
+      const candidates = imageCandidates(uniqueNames[nextIndex++]);
+      if(candidates.some(src => cache.has(src))) continue;
+
+      await new Promise(resolve => {
+        const load = (candidateIndex) => {
+          const src = candidates[candidateIndex];
+          const img = new Image();
+          img.referrerPolicy = "no-referrer";
+          img.onload = () => { cache.set(src, true); resolve(); };
+          img.onerror = () => candidateIndex + 1 < candidates.length
+            ? load(candidateIndex + 1)
+            : resolve();
+          img.src = src;
+        };
+        load(0);
+      });
+    }
+  };
+
+  Promise.all(Array.from({ length: Math.min(concurrency, uniqueNames.length) }, worker));
+}
+
 function ensureStages(stageEl){
   if(stageEl.children.length===0){
     const a=document.createElement("img"), b=document.createElement("img");
@@ -329,11 +366,7 @@ function showImage(stageEl, name){
   const active=imgA.classList.contains("active")?imgA:imgB;
   const idle=active===imgA?imgB:imgA;
 
-  const primary = IMAGE_MAP[name] || placeholderSrc(name);
-  const candidates = [primary];
-  if(!primary.startsWith("data:") && !primary.includes("placehold.co")){
-    candidates.push(placeholderSrc(name)); // フォールバック
-  }
+  const candidates = imageCandidates(name);
 
   function swapTo(src){
     idle.src=src; idle.alt=name; active.alt=name;
@@ -567,48 +600,4 @@ editBtn?.addEventListener('click', ()=>{
 });
 searchInput?.addEventListener('input', ()=>{ renderChecklist(); });
 selAllBtn?.addEventListener('click', ()=>{ visibleNames().forEach(n=>selectedSet.add(n)); saveSelected(selectedSet); renderChecklist(); });
-clrAllBtn?.addEventListener('click', ()=>{ visibleNames().forEach(n=>selectedSet.delete(n)); saveSelected(selectedSet); renderChecklist(); });
-
-startBtn?.addEventListener('click', ()=>{
-  const arr = MEMBERS.filter(name => selectedSet.has(name));
-
-  if(arr.length < 2){
-    alert('2人以上選んでください');
-    return;
-  }
-  selectedSet = new Set(arr);
-  saveSelected(selectedSet);
-
-  SELECTED = arr.slice();
-
-  try{ localStorage.removeItem(STORAGE_KEY); }catch{}
-  history.length = 0;
-  undoBtn.disabled = true;
-
-  state = createNewState(SELECTED.slice());
-  toggleSetup(false);
-  render();
-});
-
-/* ===== 初期化 ===== */
-let state=null;
-(async function init(){
-  IMAGE_MAP = await loadImageMapJson(); // image-map.json が無くてもOK
-  const savedSel = loadSelected();
-  SELECTED = Array.from(savedSel);
-
-  const savedState = loadState();
-  if(savedState){
-    state = savedState;
-    toggleSetup(false); // ← 既存の続きがあればそのまま本編表示
-  }else{
-    state = createNewState(SELECTED.slice());
-    toggleSetup(false);
-  }
-  render();
-})();
-
-</script>
-
-</body>
-</html>
+clrAllBtn?.addEventListener('click', ()=>{ 
